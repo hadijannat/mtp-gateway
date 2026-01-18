@@ -198,7 +198,7 @@ class WebUIConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = Field(default=False, description="Enable Web UI server")
-    host: str = Field(default="0.0.0.0", description="Server bind address")
+    host: str = Field(default="127.0.0.1", description="Server bind address")
     port: int = Field(default=8080, ge=1, le=65535, description="Server port")
     jwt_secret: str | None = Field(default=None, description="JWT signing secret (from env)")
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")

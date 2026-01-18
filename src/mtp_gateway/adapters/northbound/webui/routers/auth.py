@@ -5,6 +5,8 @@ Provides endpoints for login, token refresh, and user info.
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from jose import JWTError
@@ -27,8 +29,20 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
+
+class MockUser(TypedDict):
+    """Mock user record used for development auth flows."""
+
+    id: int
+    username: str
+    email: str
+    password_hash: str
+    role: str
+    is_active: bool
+
+
 # Mock user database - replace with real database in production
-_MOCK_USERS = {
+_MOCK_USERS: dict[str, MockUser] = {
     "admin": {
         "id": 1,
         "username": "admin",
@@ -109,7 +123,7 @@ async def login(
         tokens=TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            token_type="bearer",
+            token_type="bearer",  # nosec B106 - OAuth2 token type
             expires_in=token_service._access_expiry_minutes * 60,
         ),
         user=UserResponse(
@@ -179,7 +193,7 @@ async def refresh_token(
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            token_type="bearer",
+            token_type="bearer",  # nosec B106 - OAuth2 token type
             expires_in=token_service._access_expiry_minutes * 60,
         )
 

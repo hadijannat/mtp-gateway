@@ -116,7 +116,7 @@ class AlarmRepository:
         async with self._pool.acquire() as conn:
             # Build query with filters
             conditions = []
-            params = []
+            params: list[object] = []
             param_idx = 1
 
             if state:
@@ -142,21 +142,23 @@ class AlarmRepository:
             where_clause = " AND ".join(conditions) if conditions else "TRUE"
 
             # Main query with user join
-            query = f"""
+            base_query = """
                 SELECT a.*, u.username
                 FROM alarms a
                 LEFT JOIN users u ON a.acknowledged_by = u.id
-                WHERE {where_clause}
+                WHERE __WHERE__
                 ORDER BY a.raised_at DESC
                 LIMIT ${param_idx} OFFSET ${param_idx + 1}
             """
+            query = base_query.replace("__WHERE__", where_clause)
             params.extend([limit, offset])
 
             rows = await conn.fetch(query, *params)
             alarms = [AlarmRecord.from_row(row) for row in rows]
 
             # Count queries
-            count_query = f"SELECT COUNT(*) FROM alarms a WHERE {where_clause}"
+            count_query = "SELECT COUNT(*) FROM alarms a WHERE __WHERE__"
+            count_query = count_query.replace("__WHERE__", where_clause)
             count_params = params[:-2]  # Remove limit/offset
             total = await conn.fetchval(count_query, *count_params)
 
@@ -575,25 +577,28 @@ class HistoryRepository:
             else:
                 # Aggregated query using time_bucket
                 interval = self._parse_bucket_size(bucket_size)
-                agg_func = self._get_aggregate_sql(aggregate)
-
-                rows = await conn.fetch(
-                    f"""
+                agg_expr = self._get_aggregate_sql(aggregate)
+                agg_query = """
                     SELECT
-                        time_bucket('{interval}', time) AS bucket,
+                        time_bucket($5::interval, time) AS bucket,
                         tag_name,
-                        {agg_func}(value) AS value,
+                        __AGG__(value) AS value,
                         MODE() WITHIN GROUP (ORDER BY quality) AS quality
                     FROM tag_history
                     WHERE tag_name = $1 AND time BETWEEN $2 AND $3
                     GROUP BY bucket, tag_name
                     ORDER BY bucket DESC
                     LIMIT $4
-                    """,
+                """
+                agg_query = agg_query.replace("__AGG__", agg_expr)
+
+                rows = await conn.fetch(
+                    agg_query,
                     tag_name,
                     start_time,
                     end_time,
                     limit,
+                    interval,
                 )
 
             return [HistoryRecord.from_row(row) for row in rows]
@@ -625,23 +630,26 @@ class HistoryRepository:
 
         async with self._pool.acquire() as conn:
             interval = self._parse_bucket_size(bucket_size)
-            agg_func = self._get_aggregate_sql(aggregate)
-
-            rows = await conn.fetch(
-                f"""
+            agg_expr = self._get_aggregate_sql(aggregate)
+            agg_query = """
                 SELECT
-                    time_bucket('{interval}', time) AS bucket,
+                    time_bucket($4::interval, time) AS bucket,
                     tag_name,
-                    {agg_func}(value) AS value,
+                    __AGG__(value) AS value,
                     MODE() WITHIN GROUP (ORDER BY quality) AS quality
                 FROM tag_history
                 WHERE tag_name = ANY($1) AND time BETWEEN $2 AND $3
                 GROUP BY bucket, tag_name
                 ORDER BY tag_name, bucket DESC
-                """,
+            """
+            agg_query = agg_query.replace("__AGG__", agg_expr)
+
+            rows = await conn.fetch(
+                agg_query,
                 tag_names,
                 start_time,
                 end_time,
+                interval,
             )
 
             # Group by tag name

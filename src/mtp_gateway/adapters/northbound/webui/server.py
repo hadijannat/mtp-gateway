@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import secrets
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from mtp_gateway.application.service_manager import ServiceManager
     from mtp_gateway.application.tag_manager import TagManager
     from mtp_gateway.config.schema import GatewayConfig
+    from mtp_gateway.domain.state_machine.packml import PackMLState
 
 logger = structlog.get_logger(__name__)
 
@@ -94,11 +96,10 @@ class MTPWebUIServer:
         """Create the JWT token service from config."""
         secret = self._webui_config.jwt_secret
         if not secret:
-            # Generate a warning and use a default (not production safe!)
             logger.warning(
-                "No JWT secret configured! Using default. Set webui.jwt_secret for production."
+                "No JWT secret configured. Using ephemeral secret; tokens will reset on restart."
             )
-            secret = "default-development-secret-change-in-production!!"
+            secret = secrets.token_urlsafe(32)
 
         return TokenService(
             secret=secret,
@@ -319,8 +320,8 @@ class MTPWebUIServer:
     def _on_state_change(
         self,
         service_name: str,
-        from_state: object,
-        to_state: object,
+        from_state: PackMLState,
+        to_state: PackMLState,
     ) -> None:
         """Handle service state changes from ServiceManager.
 
@@ -330,10 +331,7 @@ class MTPWebUIServer:
             to_state: New PackML state
         """
         if self._broadcaster:
-            # Convert state objects to strings
-            from_str = from_state.name if hasattr(from_state, "name") else str(from_state)
-            to_str = to_state.name if hasattr(to_state, "name") else str(to_state)
-            self._broadcaster.on_state_change(service_name, from_str, to_str)
+            self._broadcaster.on_state_change(service_name, from_state, to_state)
 
     @property
     def is_running(self) -> bool:
