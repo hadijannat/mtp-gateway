@@ -9,7 +9,7 @@ This package provides a production-grade gateway that:
 
 # Version is set dynamically by hatch-vcs from git tags
 try:
-    from mtp_gateway._version import __version__  # type: ignore[import-untyped]
+    from mtp_gateway._version import __version__
 except ImportError:
     __version__ = "0.0.0.dev0"  # Development fallback
 

@@ -144,6 +144,7 @@ pretty = true
 
 [[tool.mypy.overrides]]
 module = [
+    "mtp_gateway._version",
     "hvac.*",
     "pymodbus.*",
     "snap7.*",
