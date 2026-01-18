@@ -7,6 +7,12 @@ import pytest
 
 from mtp_gateway.config.schema import ModbusTCPConnectorConfig
 
+_PYMODBUS_AVAILABLE = True
+try:
+    from mtp_gateway.adapters.southbound.modbus.driver import ModbusTCPConnector
+except ModuleNotFoundError:
+    _PYMODBUS_AVAILABLE = False
+
 
 def _modbus_reachable(host: str, port: int) -> bool:
     try:
@@ -18,9 +24,8 @@ def _modbus_reachable(host: str, port: int) -> bool:
 
 @pytest.mark.asyncio
 async def test_modbus_tcp_connects_and_disconnects() -> None:
-    pytest.importorskip("pymodbus")
-
-    from mtp_gateway.adapters.southbound.modbus.driver import ModbusTCPConnector
+    if not _PYMODBUS_AVAILABLE:
+        pytest.skip("pymodbus not installed")
 
     host = os.getenv("MTP_MODBUS_HOST", "127.0.0.1")
     port = int(os.getenv("MTP_MODBUS_PORT", "5020"))
