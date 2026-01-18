@@ -280,6 +280,7 @@ def mock_connector() -> MagicMock:
     connector = MagicMock()
     connector.read_tags = AsyncMock(return_value={"DB1.DBD0": TagValue.good(100.0)})
     connector.write_tag = AsyncMock(return_value=True)
+    connector.write_tag_value = AsyncMock(return_value=True)
     return connector
 
 
@@ -340,7 +341,7 @@ class TestTagManagerSafety:
         assert result2 is False
 
         # Only one actual write should happen
-        assert mock_connector.write_tag.call_count == 1
+        assert mock_connector.write_tag_value.call_count == 1
 
     @pytest.mark.asyncio
     async def test_write_blocked_by_rate_limit(
@@ -368,7 +369,7 @@ class TestTagManagerSafety:
         assert result2 is False
 
         # Only one actual write
-        assert mock_connector.write_tag.call_count == 1
+        assert mock_connector.write_tag_value.call_count == 1
 
     @pytest.mark.asyncio
     async def test_write_allowed_with_safety(
@@ -390,7 +391,7 @@ class TestTagManagerSafety:
         result = await tm.write_tag("Motor.Speed", 75.0)
 
         assert result is True
-        mock_connector.write_tag.assert_called_once()
+        mock_connector.write_tag_value.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_works_without_safety_controller(
@@ -406,7 +407,7 @@ class TestTagManagerSafety:
         # All writes should work (no safety checks)
         result = await tm.write_tag("Motor.Speed", 100.0)
         assert result is True
-        mock_connector.write_tag.assert_called()
+        mock_connector.write_tag_value.assert_called()
 
     @pytest.mark.asyncio
     async def test_writable_flag_still_enforced(
