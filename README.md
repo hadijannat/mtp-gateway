@@ -191,7 +191,7 @@ mtp-gateway run config.yaml
 
 **Scenario:** A legacy reactor skid already running in production needs to be integrated into a modern orchestration system—without touching the PLC program. The gateway sits in front of the PLC, exposes a clean OPC UA interface, and generates an MTP package that a process orchestration layer can import.
 
-![MTP Gateway Demo Flow](docs/assets/demo-flow.svg)
+![MTP Gateway Demo Flow](docs/assets/demo-flow.png)
 
 ### What a non‑technical viewer sees
 

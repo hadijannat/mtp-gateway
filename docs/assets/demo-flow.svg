@@ -52,7 +52,7 @@
   <text x="855" y="240" class="box-text">• Browse OPC UA</text>
   <text x="855" y="265" class="box-text">• Run services safely</text>
   <rect x="855" y="295" width="170" height="26" class="pill" />
-  <text x="870" y="313" class="pill-text">Plug & Produce</text>
+  <text x="870" y="313" class="pill-text">Plug &amp; Produce</text>
 
   <line x1="370" y1="265" x2="450" y2="265" class="arrow" />
   <line x1="750" y1="265" x2="830" y2="265" class="arrow" />
