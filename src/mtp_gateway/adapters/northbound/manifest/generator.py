@@ -15,10 +15,10 @@ from __future__ import annotations
 import uuid
 import zipfile
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import defusedxml.ElementTree as _ET
 import structlog
-from defusedxml import ElementTree as ET
 
 from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
 
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         ServiceConfig,
     )
 
+ET: Any = _ET
 logger = structlog.get_logger(__name__)
 
 # AutomationML/CAEX namespaces
@@ -441,7 +442,7 @@ class MTPManifestGenerator:
             ET.indent(root, space="  ")
         else:
             self._indent_element(root)
-        return ET.tostring(root, encoding="unicode")
+        return str(ET.tostring(root, encoding="unicode"))
 
     def _indent_element(self, elem: ET.Element, level: int = 0) -> None:
         """Indent XML elements for readability when ET.indent is unavailable."""
