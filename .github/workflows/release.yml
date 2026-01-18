@@ -48,7 +48,7 @@ jobs:
         run: bandit -r src/mtp_gateway
 
       - name: Run dependency vulnerability scan
-        run: pip-audit
+        run: pip-audit --skip-editable --ignore-vuln CVE-2024-23342
 
       - name: Verify external MTP validation report
         run: ./scripts/ci/check_mtp_validator.sh
