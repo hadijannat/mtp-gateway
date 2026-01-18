@@ -11,6 +11,8 @@
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://github.com/hadijannat/mtp-gateway)
 [![VDI/VDE/NAMUR 2658](https://img.shields.io/badge/VDI%2FVDE%2FNAMUR-2658-orange)](https://www.vdi.de/richtlinien/details/vdivde-2658-blatt-1-automation-engineering-of-modular-systems-in-the-process-industry-general-concept-and-interfaces)
 
+![MTP Gateway - Bridge Legacy PLCs to Industry 4.0](docs/assets/hero_banner.png)
+
 **Transform your existing factory equipment into Industry 4.0–ready assets with deterministic OPC UA interfaces and AutomationML manifests.**
 
 ```mermaid
@@ -223,6 +225,10 @@ mtp-gateway run examples/reactor-pea.yaml
 
 MTP Gateway follows a clean three-layer architecture that separates concerns and enables testing:
 
+![System Architecture - Hexagonal Clean Architecture](docs/assets/architecture_diagram.png)
+
+<p align="center"><em>Three-layer hexagonal architecture: Northbound (OPC UA/AutomationML), Application Core (business logic), Southbound (protocol drivers)</em></p>
+
 ```mermaid
 flowchart TB
     subgraph North["Northbound Layer"]
@@ -263,6 +269,10 @@ flowchart TB
 ---
 
 ## 📡 Protocol Support
+
+![Protocol Stack - Unified Tag Manager Hub](docs/assets/protocol_stack.png)
+
+<p align="center"><em>Four industrial protocols converge into a unified Tag Manager for seamless data access</em></p>
 
 | Protocol | Status | Extra Install | Example Connection |
 |----------|--------|---------------|-------------------|
@@ -355,6 +365,10 @@ mtp:
 ---
 
 ## 📦 Data Assemblies (VDI 2658-4)
+
+![MTP Package Generation Pipeline](docs/assets/mtp_pipeline.png)
+
+<p align="center"><em>From config.yaml to POL-ready MTP package: automated generation workflow</em></p>
 
 MTP Gateway implements all standard data assembly types from VDI/VDE/NAMUR 2658 Part 4:
 
@@ -649,6 +663,10 @@ Then configure your IDE to use it for YAML files. In VS Code with the YAML exten
 ---
 
 ## 🔐 Security
+
+![Industrial Safety System Flowchart](docs/assets/safety_flow.png)
+
+<p align="center"><em>Multi-layer safety: Allowlist → Rate Limit → Interlock checks with safe-state fallback on comm loss</em></p>
 
 MTP Gateway includes comprehensive security features:
 
