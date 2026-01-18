@@ -8,12 +8,11 @@ subscriber notifications.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from mtp_gateway.adapters.persistence import PersistenceRepository
 from mtp_gateway.application.service_manager import ServiceManager
 from mtp_gateway.config.schema import (
     ComparisonOp,
@@ -25,7 +24,7 @@ from mtp_gateway.config.schema import (
     StateHooksConfig,
     WriteAction,
 )
-from mtp_gateway.domain.model.tags import Quality, TagValue
+from mtp_gateway.domain.model.tags import TagValue
 from mtp_gateway.domain.state_machine.packml import PackMLCommand, PackMLState
 
 
@@ -479,9 +478,6 @@ class TestServiceManagerPersistence:
         self, mock_tag_manager: MagicMock, thick_service_config: ServiceConfig
     ) -> None:
         """State changes should be persisted to the repository."""
-        import asyncio
-
-        from mtp_gateway.adapters.persistence import PersistenceRepository
 
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
@@ -522,8 +518,6 @@ class TestServiceManagerPersistence:
         self, mock_tag_manager: MagicMock, thick_service_config: ServiceConfig
     ) -> None:
         """recover_services() should restore state from persistence."""
-        from mtp_gateway.adapters.persistence import PersistenceRepository
-
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
 
@@ -552,8 +546,6 @@ class TestServiceManagerPersistence:
         self, mock_tag_manager: MagicMock, thick_service_config: ServiceConfig
     ) -> None:
         """recover_services() should clear persisted state after recovery."""
-        from mtp_gateway.adapters.persistence import PersistenceRepository
-
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
 

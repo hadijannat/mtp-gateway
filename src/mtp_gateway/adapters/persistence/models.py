@@ -7,7 +7,7 @@ and command audit logging. Uses SQLAlchemy 2.0 declarative style.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import DateTime, Integer, String, Text
@@ -44,12 +44,12 @@ class ServiceStateSnapshot(Base):
     procedure_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     parameters: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def __init__(
@@ -75,8 +75,8 @@ class ServiceStateSnapshot(Base):
         self.state = state
         self.procedure_id = procedure_id
         self.parameters = json.dumps(parameters) if parameters else None
-        self.started_at = started_at or datetime.now(timezone.utc)
-        self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.started_at = started_at or datetime.now(UTC)
+        self.updated_at = updated_at or datetime.now(UTC)
 
 
 class TagValueRecord(Base):

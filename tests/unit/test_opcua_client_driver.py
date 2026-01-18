@@ -14,20 +14,19 @@ OPC UA NodeId Formats:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID
 
 import pytest
 
 # Import will fail initially - that's expected for TDD
+from mtp_gateway.adapters.southbound.base import ConnectorState
 from mtp_gateway.adapters.southbound.opcua_client.driver import (
     OPCUAClientConnector,
     parse_node_id,
 )
 from mtp_gateway.config.schema import OPCUAClientConnectorConfig, SecurityPolicy
 from mtp_gateway.domain.model.tags import Quality
-
 
 # =============================================================================
 # NODE ID PARSING TESTS
@@ -121,32 +120,32 @@ class TestNodeIdParsing:
 
     def test_invalid_address_empty_raises(self) -> None:
         """Empty address should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ee]mpty|[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ee]mpty|[Ii]nvalid"):
             parse_node_id("")
 
     def test_invalid_address_whitespace_only_raises(self) -> None:
         """Whitespace-only address should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ee]mpty|[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ee]mpty|[Ii]nvalid"):
             parse_node_id("   ")
 
     def test_invalid_address_missing_identifier_raises(self) -> None:
         """Missing identifier should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_node_id("ns=2")
 
     def test_invalid_address_bad_namespace_raises(self) -> None:
         """Non-numeric namespace should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_node_id("ns=abc;i=1001")
 
     def test_invalid_address_bad_numeric_id_raises(self) -> None:
         """Non-numeric identifier with i= prefix should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_node_id("ns=2;i=notanumber")
 
     def test_invalid_address_unknown_format_raises(self) -> None:
         """Unknown format should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_node_id("random_string")
 
 
@@ -191,8 +190,6 @@ class TestOPCUAClientConnectorMocked:
             await connector.connect()
 
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.CONNECTED
             mock_client_class.assert_called_once_with(url="opc.tcp://localhost:4840")
             mock_client.connect.assert_called_once()
@@ -216,8 +213,6 @@ class TestOPCUAClientConnectorMocked:
                 await connector.connect()
 
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.ERROR
 
     async def test_read_tags_returns_tag_values(
@@ -402,8 +397,6 @@ class TestOPCUAClientConnectorMocked:
 
             mock_client.disconnect.assert_called_once()
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.STOPPED
 
     async def test_read_without_connect_fails(
@@ -482,6 +475,8 @@ class TestSecurityConfiguration:
             name="test_opcua",
             endpoint="opc.tcp://localhost:4840",
             security_policy=SecurityPolicy.BASIC256SHA256_SIGN_ENCRYPT,
+            cert_path=Path("client_cert.pem"),
+            key_path=Path("client_key.pem"),
         )
 
         with patch(
@@ -489,12 +484,13 @@ class TestSecurityConfiguration:
         ) as mock_client_class:
             mock_client = MagicMock()
             mock_client.connect = AsyncMock()
-            mock_client.set_security_string = MagicMock()
+            mock_client.set_security_string = AsyncMock()
             mock_client_class.return_value = mock_client
 
             connector = OPCUAClientConnector(config)
-            # Note: In actual implementation, security requires cert/key paths
-            # This test verifies the connector attempts to apply security
+            await connector.connect()
+
+            mock_client.set_security_string.assert_called_once()
 
     async def test_username_password_auth(self) -> None:
         """Username/password credentials are set."""

@@ -14,8 +14,8 @@ from mtp_gateway.adapters.persistence.models import (
 from mtp_gateway.adapters.persistence.repository import PersistenceRepository
 
 __all__ = [
+    "CommandAuditLog",
     "PersistenceRepository",
     "ServiceStateSnapshot",
     "TagValueRecord",
-    "CommandAuditLog",
 ]

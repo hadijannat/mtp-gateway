@@ -13,20 +13,18 @@ EIP Address Formats:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 # Import will fail initially - that's expected for TDD
+from mtp_gateway.adapters.southbound.base import ConnectorState
 from mtp_gateway.adapters.southbound.eip.driver import (
     EIPConnector,
-    ParsedEIPAddress,
     parse_eip_address,
 )
 from mtp_gateway.config.schema import EIPConnectorConfig
 from mtp_gateway.domain.model.tags import Quality
-
 
 # =============================================================================
 # EIP ADDRESS PARSING TESTS
@@ -158,32 +156,32 @@ class TestEIPAddressParsing:
 
     def test_invalid_address_empty_raises(self) -> None:
         """Empty address should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ee]mpty|[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ee]mpty|[Ii]nvalid"):
             parse_eip_address("")
 
     def test_invalid_address_whitespace_only_raises(self) -> None:
         """Whitespace-only address should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ee]mpty|[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ee]mpty|[Ii]nvalid"):
             parse_eip_address("   ")
 
     def test_invalid_array_index_raises(self) -> None:
         """Non-numeric array index should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_eip_address("MyArray[abc]")
 
     def test_invalid_bit_offset_raises(self) -> None:
         """Non-numeric bit offset should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_eip_address("MyTag{x}")
 
     def test_unclosed_bracket_raises(self) -> None:
         """Unclosed array bracket should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_eip_address("MyArray[0")
 
     def test_unclosed_brace_raises(self) -> None:
         """Unclosed bit brace should raise ValueError."""
-        with pytest.raises(ValueError, match="[Ii]nvalid"):
+        with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             parse_eip_address("MyTag{5")
 
 
@@ -224,8 +222,6 @@ class TestEIPConnectorMocked:
             await connector.connect()
 
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.CONNECTED
             mock_logix.assert_called_once_with("192.168.1.50", slot=0)
 
@@ -245,8 +241,6 @@ class TestEIPConnectorMocked:
                 await connector.connect()
 
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.ERROR
 
     async def test_read_tags_returns_tag_values(
@@ -517,8 +511,6 @@ class TestEIPConnectorMocked:
 
             mock_driver.close.assert_called_once()
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.STOPPED
 
     async def test_read_without_connect_fails(

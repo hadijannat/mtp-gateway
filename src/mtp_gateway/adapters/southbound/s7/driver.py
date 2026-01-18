@@ -21,7 +21,7 @@ import re
 import struct
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -38,7 +38,7 @@ try:
 
     _HAS_SNAP7 = True
 except ImportError:
-    snap7 = None  # noqa: F811
+    snap7 = None
     _HAS_SNAP7 = False
 
 HAS_SNAP7: bool = _HAS_SNAP7
@@ -51,7 +51,7 @@ class S7AreaType(Enum):
 
     DB = "db"  # Data blocks
     M = "m"  # Marker/Memory
-    I = "i"  # Inputs (PE - Process image inputs)
+    I = "i"  # noqa: E741  # Inputs (PE - Process image inputs)
     Q = "q"  # Outputs (PA - Process image outputs)
     C = "c"  # Counters
     T = "t"  # Timers
@@ -105,7 +105,7 @@ _IO_BIT_PATTERN = re.compile(r"^([IQ])(\d+)\.([0-7])$", re.IGNORECASE)
 _IO_DATA_PATTERN = re.compile(r"^([IQ])([BWD])(\d+)$", re.IGNORECASE)
 
 
-def parse_s7_address(address_str: str) -> ParsedS7Address:
+def parse_s7_address(address_str: str) -> ParsedS7Address:  # noqa: PLR0912
     """Parse an S7 address string into components.
 
     Supports formats:
@@ -231,7 +231,7 @@ def parse_s7_address(address_str: str) -> ParsedS7Address:
     raise ValueError(f"Invalid S7 address: {address_str}")
 
 
-def decode_s7_value(
+def decode_s7_value(  # noqa: PLR0911
     raw_bytes: bytes | bytearray,
     data_type: str,
     *,

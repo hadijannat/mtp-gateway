@@ -7,11 +7,10 @@ Configuration is loaded from YAML files and validated against these models.
 from __future__ import annotations
 
 from enum import Enum
-from pathlib import Path
-from typing import Annotated, Any, Literal
+from pathlib import Path  # noqa: TC003
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
 
 # =============================================================================
 # ENUMERATIONS

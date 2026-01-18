@@ -6,7 +6,7 @@ Covers service state persistence, tag history, and command audit logging.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -166,7 +166,7 @@ class TestTagValueHistory:
         self, repository: PersistenceRepository
     ) -> None:
         """record_tag_value() stores tag value with timestamp."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         await repository.record_tag_value(
             tag_name="Temperature.PV",
@@ -192,7 +192,7 @@ class TestTagValueHistory:
         self, repository: PersistenceRepository
     ) -> None:
         """record_tag_value() handles different value types."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         # Integer
         await repository.record_tag_value(
@@ -239,7 +239,7 @@ class TestTagValueHistory:
         self, repository: PersistenceRepository
     ) -> None:
         """get_tag_history() returns values within time range."""
-        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Record values at different times
         for i in range(5):
@@ -271,8 +271,8 @@ class TestTagValueHistory:
         """get_tag_history() returns empty list for no matches."""
         history = await repository.get_tag_history(
             tag_name="NonexistentTag",
-            start=datetime.now(timezone.utc) - timedelta(hours=1),
-            end=datetime.now(timezone.utc),
+            start=datetime.now(UTC) - timedelta(hours=1),
+            end=datetime.now(UTC),
         )
         assert history == []
 
@@ -281,7 +281,7 @@ class TestTagValueHistory:
         self, repository: PersistenceRepository
     ) -> None:
         """get_tag_history() returns values ordered by timestamp ascending."""
-        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Record out of order
         await repository.record_tag_value(
@@ -318,7 +318,7 @@ class TestTagValueHistory:
         self, repository: PersistenceRepository
     ) -> None:
         """record_tag_value() stores source_timestamp when provided."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         source_ts = timestamp - timedelta(milliseconds=50)
 
         await repository.record_tag_value(
@@ -345,7 +345,7 @@ class TestCommandAuditLog:
     @pytest.mark.asyncio
     async def test_log_command(self, repository: PersistenceRepository) -> None:
         """log_command() stores command with all details."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         await repository.log_command(
             timestamp=timestamp,
@@ -374,7 +374,7 @@ class TestCommandAuditLog:
         self, repository: PersistenceRepository
     ) -> None:
         """log_command() stores failed commands with error message."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         await repository.log_command(
             timestamp=timestamp,
@@ -399,7 +399,7 @@ class TestCommandAuditLog:
         self, repository: PersistenceRepository
     ) -> None:
         """get_audit_log() returns logs within time range."""
-        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Record logs at different times
         for i in range(5):
@@ -427,8 +427,8 @@ class TestCommandAuditLog:
     ) -> None:
         """get_audit_log() returns empty list when no logs match."""
         logs = await repository.get_audit_log(
-            start=datetime.now(timezone.utc) - timedelta(hours=1),
-            end=datetime.now(timezone.utc),
+            start=datetime.now(UTC) - timedelta(hours=1),
+            end=datetime.now(UTC),
         )
         assert logs == []
 
@@ -437,7 +437,7 @@ class TestCommandAuditLog:
         self, repository: PersistenceRepository
     ) -> None:
         """get_audit_log() returns logs ordered by timestamp ascending."""
-        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Record out of order
         await repository.log_command(
@@ -503,7 +503,7 @@ class TestTagValueRecordModel:
 
     def test_model_fields(self) -> None:
         """TagValueRecord should have expected fields."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         record = TagValueRecord(
             tag_name="Temp.PV",
             value=85.5,
@@ -519,7 +519,7 @@ class TestTagValueRecordModel:
 
     def test_different_value_types(self) -> None:
         """TagValueRecord should handle different value types."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         # Float
         record_float = TagValueRecord(
@@ -545,7 +545,7 @@ class TestCommandAuditLogModel:
 
     def test_model_fields(self) -> None:
         """CommandAuditLog should have expected fields."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         log = CommandAuditLog(
             timestamp=timestamp,
             command_type="START",

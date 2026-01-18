@@ -11,11 +11,23 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime, timezone
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+from mtp_gateway.adapters.persistence import PersistenceRepository
+from mtp_gateway.application.service_manager import ServiceManager
+from mtp_gateway.application.tag_manager import TagManager
+from mtp_gateway.config.schema import (
+    DataTypeConfig,
+    ProxyMode,
+    SafeStateOutput,
+    SafetyConfig,
+    ServiceConfig,
+    TagConfig,
+)
+from mtp_gateway.domain.model.tags import TagValue
 
 # Will fail initially - these don't exist yet
 from mtp_gateway.domain.rules.safety import (
@@ -24,20 +36,7 @@ from mtp_gateway.domain.rules.safety import (
     WriteValidation,
     parse_rate_string,
 )
-
-from mtp_gateway.application.service_manager import ServiceManager
-from mtp_gateway.application.tag_manager import TagManager
-from mtp_gateway.config.schema import (
-    ProxyMode,
-    SafeStateOutput,
-    SafetyConfig,
-    ServiceConfig,
-    TagConfig,
-    DataTypeConfig,
-)
-from mtp_gateway.domain.model.tags import Quality, TagValue
 from mtp_gateway.domain.state_machine.packml import PackMLCommand, PackMLState
-
 
 # =============================================================================
 # RateLimiter Tests
@@ -578,8 +577,6 @@ class TestServiceManagerEmergencyStop:
         self, mock_tag_manager_for_estop: MagicMock, service_configs: list[ServiceConfig]
     ) -> None:
         """emergency_stop() should log to command audit log if persistence available."""
-        from mtp_gateway.adapters.persistence import PersistenceRepository
-
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
 
@@ -602,8 +599,7 @@ class TestServiceManagerEmergencyStop:
         await asyncio.sleep(0.1)
 
         # Check audit log for emergency stop event
-        now = datetime.now(timezone.utc)
-        from datetime import timedelta
+        now = datetime.now(UTC)
         logs = await repo.get_audit_log(
             start=now - timedelta(seconds=10),
             end=now + timedelta(seconds=10),

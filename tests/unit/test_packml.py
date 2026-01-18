@@ -8,7 +8,6 @@ thread-safe concurrent command handling per VDI 2658 / ISA-88.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 import pytest
 
@@ -315,7 +314,7 @@ class TestPackMLInvalidTransitions:
 
 
 class TestPackMLActingStateAutoTransition:
-    """Tests for acting state (–ING states) auto-transitions."""
+    """Tests for acting state (-ING states) auto-transitions."""
 
     @pytest.fixture
     def sm(self) -> PackMLStateMachine:

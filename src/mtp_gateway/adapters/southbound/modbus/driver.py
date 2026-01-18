@@ -12,10 +12,9 @@ Modbus Address Mapping:
 
 from __future__ import annotations
 
-import asyncio
 import struct
-from datetime import datetime, timezone
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -25,9 +24,9 @@ from pymodbus.exceptions import ModbusException
 from pymodbus.pdu import ExceptionResponse
 
 from mtp_gateway.adapters.southbound.base import BaseConnector
+from mtp_gateway.domain.model.tags import Quality, TagDefinition, TagValue
 
 if TYPE_CHECKING:
-    from pymodbus.client import ModbusBaseClient
 
     from mtp_gateway.config.schema import ModbusRTUConnectorConfig, ModbusTCPConnectorConfig
 
@@ -53,7 +52,7 @@ class ParsedAddress:
     bit_offset: int | None = None  # For bit-level access within registers
 
 
-def parse_modbus_address(address_str: str) -> ParsedAddress:
+def parse_modbus_address(address_str: str) -> ParsedAddress:  # noqa: PLR0911
     """Parse a Modbus address string into components.
 
     Supports formats:
@@ -321,17 +320,15 @@ class ModbusTCPConnector(BaseConnector):
 
         return results
 
-    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, "TagValue"]:
+    async def read_tag_values(self, tags: list[TagDefinition]) -> dict[str, TagValue]:
         """Read Modbus tags using datatype metadata."""
-        from mtp_gateway.domain.model.tags import Quality, TagValue
-
         if not tags:
             return {}
 
         self._health.total_reads += len(tags)
 
         if not self._client:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             self._health.record_error("Not connected")
             return {
                 tag.name: TagValue(
@@ -343,7 +340,7 @@ class ModbusTCPConnector(BaseConnector):
             }
 
         results: dict[str, TagValue] = {}
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for tag in tags:
             try:
@@ -489,7 +486,7 @@ class ModbusTCPConnector(BaseConnector):
         if isinstance(response, ExceptionResponse):
             raise ModbusException(f"Write failed: {response}")
 
-    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+    async def write_tag_value(self, tag: TagDefinition, value: Any) -> bool:
         """Write a Modbus tag using datatype metadata."""
         self._health.total_writes += 1
 
@@ -609,17 +606,15 @@ class ModbusRTUConnector(BaseConnector):
 
         return results
 
-    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, "TagValue"]:
+    async def read_tag_values(self, tags: list[TagDefinition]) -> dict[str, TagValue]:
         """Read Modbus RTU tags using datatype metadata."""
-        from mtp_gateway.domain.model.tags import Quality, TagValue
-
         if not tags:
             return {}
 
         self._health.total_reads += len(tags)
 
         if not self._client:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             self._health.record_error("Not connected")
             return {
                 tag.name: TagValue(
@@ -631,7 +626,7 @@ class ModbusRTUConnector(BaseConnector):
             }
 
         results: dict[str, TagValue] = {}
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for tag in tags:
             try:
@@ -776,7 +771,7 @@ class ModbusRTUConnector(BaseConnector):
         if isinstance(response, ExceptionResponse):
             raise ModbusException(f"Write failed: {response}")
 
-    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+    async def write_tag_value(self, tag: TagDefinition, value: Any) -> bool:
         """Write a Modbus RTU tag using datatype metadata."""
         self._health.total_writes += 1
 

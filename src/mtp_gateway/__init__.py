@@ -13,7 +13,7 @@ __author__ = "MTP Gateway Team"
 from mtp_gateway.domain.model.tags import Quality, TagValue
 
 __all__ = [
-    "__version__",
     "Quality",
     "TagValue",
+    "__version__",
 ]

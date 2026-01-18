@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import structlog
 import yaml
@@ -47,7 +49,9 @@ def load_yaml_file(path: Path) -> dict[str, Any]:
             if content is None:
                 return {}
             if not isinstance(content, dict):
-                raise ConfigurationError(f"Configuration must be a YAML mapping, got {type(content)}")
+                raise ConfigurationError(
+                    f"Configuration must be a YAML mapping, got {type(content)}"
+                )
             return content
     except yaml.YAMLError as e:
         raise ConfigurationError(f"Invalid YAML in {path}: {e}") from e
@@ -149,7 +153,7 @@ def load_config(
             error_messages.append(f"  - {loc}: {msg}")
 
         raise ConfigurationError(
-            f"Configuration validation failed:\n" + "\n".join(error_messages),
+            "Configuration validation failed:\n" + "\n".join(error_messages),
             errors=errors,
         ) from e
 

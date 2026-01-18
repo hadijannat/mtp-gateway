@@ -7,14 +7,13 @@ Follows TDD - these tests are written first, then implementation.
 from __future__ import annotations
 
 import struct
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 # Import will fail initially - that's expected for TDD
+from mtp_gateway.adapters.southbound.base import ConnectorState
 from mtp_gateway.adapters.southbound.s7.driver import (
-    ParsedS7Address,
     S7AreaType,
     S7Connector,
     decode_s7_value,
@@ -23,7 +22,6 @@ from mtp_gateway.adapters.southbound.s7.driver import (
 )
 from mtp_gateway.config.schema import S7ConnectorConfig
 from mtp_gateway.domain.model.tags import Quality
-
 
 # =============================================================================
 # S7 ADDRESS PARSING TESTS
@@ -409,8 +407,6 @@ class TestS7ConnectorMocked:
             await connector.connect()
 
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.CONNECTED
             mock_client.connect.assert_called_once_with(
                 "192.168.1.100", 0, 1, 102
@@ -430,8 +426,6 @@ class TestS7ConnectorMocked:
                 await connector.connect()
 
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.ERROR
 
     async def test_read_tags_returns_tag_values(
@@ -629,8 +623,6 @@ class TestS7ConnectorMocked:
 
             mock_client.disconnect.assert_called_once()
             health = connector.health_status()
-            from mtp_gateway.adapters.southbound.base import ConnectorState
-
             assert health.state == ConnectorState.STOPPED
 
     async def test_read_without_connect_fails(

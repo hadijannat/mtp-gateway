@@ -9,12 +9,27 @@ Provides commands for:
 
 from __future__ import annotations
 
+import asyncio
+import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from rich.console import Console
 from rich.table import Table
+
+from mtp_gateway import __version__
+from mtp_gateway.adapters.northbound.manifest.generator import MTPManifestGenerator
+from mtp_gateway.adapters.southbound.base import create_connector
+from mtp_gateway.config.loader import (
+    ConfigurationError,
+    generate_example_config,
+    load_config,
+)
+from mtp_gateway.main import run_gateway
+
+if TYPE_CHECKING:
+    from mtp_gateway.config.schema import GatewayConfig
 
 app = typer.Typer(
     name="mtp-gateway",
@@ -38,7 +53,7 @@ def run(
         ),
     ],
     override: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--override",
             "-o",
@@ -66,20 +81,15 @@ def run(
 
     Loads configuration, initializes connectors, and starts the OPC UA server.
     """
-    import asyncio
-    import os
-
     # Set log environment variables before importing modules
     os.environ["MTP_LOG_LEVEL"] = log_level
     os.environ["MTP_LOG_FORMAT"] = log_format
 
-    from mtp_gateway.main import run_gateway
-
-    console.print(f"[bold green]Starting MTP Gateway[/bold green]")
+    console.print("[bold green]Starting MTP Gateway[/bold green]")
     console.print(f"Configuration: {config}")
 
     try:
-        asyncio.run(run_gateway(config))
+        asyncio.run(run_gateway(config, override_path=override))
     except KeyboardInterrupt:
         console.print("\n[yellow]Shutdown requested[/yellow]")
     except Exception as e:
@@ -112,8 +122,6 @@ def validate(
 
     Checks the configuration for errors without starting the gateway.
     """
-    from mtp_gateway.config.loader import ConfigurationError, load_config
-
     console.print(f"[bold]Validating:[/bold] {config}")
 
     try:
@@ -125,7 +133,7 @@ def validate(
             _print_config_summary(gateway_config)
 
     except ConfigurationError as e:
-        console.print(f"[bold red]Validation failed:[/bold red]")
+        console.print("[bold red]Validation failed:[/bold red]")
         console.print(str(e))
         raise typer.Exit(code=1) from e
 
@@ -161,11 +169,6 @@ def generate_manifest(
     Creates an AutomationML manifest file that can be imported into
     a Process Orchestration Layer (POL).
     """
-    from mtp_gateway.adapters.northbound.manifest.generator import (
-        MTPManifestGenerator,
-    )
-    from mtp_gateway.config.loader import load_config
-
     console.print(f"[bold]Loading configuration:[/bold] {config}")
 
     gateway_config = load_config(config)
@@ -192,7 +195,7 @@ def probe(
         ),
     ],
     connector: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--connector",
             "-c",
@@ -204,11 +207,6 @@ def probe(
 
     Attempts to connect to each connector and reports status.
     """
-    import asyncio
-
-    from mtp_gateway.adapters.southbound.base import create_connector
-    from mtp_gateway.config.loader import load_config
-
     console.print(f"[bold]Loading configuration:[/bold] {config}")
     gateway_config = load_config(config)
 
@@ -266,8 +264,6 @@ def generate_example(
 
     Creates a sample configuration that can be customized for your setup.
     """
-    from mtp_gateway.config.loader import generate_example_config
-
     example_yaml = generate_example_config()
     output.write_text(example_yaml)
 
@@ -280,14 +276,11 @@ def generate_example(
 @app.command()
 def version() -> None:
     """Show version information."""
-    from mtp_gateway import __version__
-
     console.print(f"MTP Gateway version [bold]{__version__}[/bold]")
 
 
-def _print_config_summary(config: "GatewayConfig") -> None:
+def _print_config_summary(config: GatewayConfig) -> None:
     """Print a summary of the configuration."""
-    from mtp_gateway.config.schema import GatewayConfig
 
     table = Table(title="Configuration Summary")
     table.add_column("Component", style="cyan")
@@ -323,7 +316,7 @@ def _print_config_summary(config: "GatewayConfig") -> None:
     console.print(table)
 
     # OPC UA info
-    console.print(f"\n[bold]OPC UA Server:[/bold]")
+    console.print("\n[bold]OPC UA Server:[/bold]")
     console.print(f"  Endpoint: {config.opcua.endpoint}")
     console.print(f"  Namespace: {config.opcua.namespace_uri}")
 

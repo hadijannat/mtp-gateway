@@ -10,21 +10,18 @@ These tests are written FIRST per TDD - they will fail until implementation.
 
 from __future__ import annotations
 
-import pytest
-
 # These imports will fail initially - classes don't exist yet
 from mtp_gateway.domain.model.data_assemblies import (
-    AnaMon,
-    BinMon,
+    DATA_ASSEMBLY_CLASSES,
     AnaDrv,
+    AnaMon,
     BaseDataAssembly,
+    BinMon,
     DataAssemblyType,
     InterlockedState,
     PermitState,
     create_data_assembly,
-    DATA_ASSEMBLY_CLASSES,
 )
-
 
 # =============================================================================
 # AnaMon Tests

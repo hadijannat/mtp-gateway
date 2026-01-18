@@ -101,7 +101,7 @@ class TestManifestServerConsistency:
 
         for da in sample_config.mtp.data_assemblies:
             base = f"PEA_{pea_name}.DataAssemblies.{da.name}"
-            for attr_name in da.bindings.keys():
+            for attr_name in da.bindings:
                 server_node_ids.add(node_ids.expanded_node_id(f"{base}.{attr_name}"))
 
         for service in sample_config.mtp.services:

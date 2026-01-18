@@ -10,9 +10,10 @@ from __future__ import annotations
 import asyncio
 import inspect
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -251,7 +252,12 @@ class TagManager:
 
     async def _mark_tags_bad(self, tags: list[TagDefinition], error: str) -> None:
         """Mark tags as bad quality due to communication failure."""
-        now = datetime.now(timezone.utc)
+        logger.warning(
+            "Marking tags bad after poll failure",
+            tag_count=len(tags),
+            error=error,
+        )
+        now = datetime.now(UTC)
         for tag_def in tags:
             tag_state = self._tags.get(tag_def.name)
             if tag_state:
@@ -352,7 +358,7 @@ class TagManager:
 
         return None
 
-    async def write_tag(self, name: str, value: Any) -> bool:
+    async def write_tag(self, name: str, value: Any) -> bool:  # noqa: PLR0911
         """Write a value to a tag.
 
         Performs safety checks before writing:

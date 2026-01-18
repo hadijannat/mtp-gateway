@@ -40,7 +40,10 @@ def parse_rate_string(rate_str: str) -> float:
     match = re.match(pattern, rate_str.strip())
 
     if not match:
-        raise ValueError(f"Invalid rate format: '{rate_str}'. Expected format like '10/s', '60/m', '3600/h'")
+        raise ValueError(
+            "Invalid rate format: "
+            f"'{rate_str}'. Expected format like '10/s', '60/m', '3600/h'"
+        )
 
     value = float(match.group(1))
     unit = match.group(2)

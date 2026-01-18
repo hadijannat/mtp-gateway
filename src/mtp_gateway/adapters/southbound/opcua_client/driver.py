@@ -22,7 +22,7 @@ Configuration example:
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -85,20 +85,19 @@ def parse_node_id(address: str) -> ua.NodeId:
         namespace = int(ns_match.group(1))
         identifier_part = ns_match.group(2)
 
-    # Parse identifier based on type prefix
-    # Numeric: i=N
+    # Parse identifier based on type prefix (numeric)
     numeric_match = _NUMERIC_PATTERN.match(identifier_part)
     if numeric_match:
         numeric_id = int(numeric_match.group(1))
         return ua.NodeId(numeric_id, namespace)
 
-    # String: s=text
+    # String NodeId (s=...)
     string_match = _STRING_PATTERN.match(identifier_part)
     if string_match:
         string_id = string_match.group(1)
         return ua.NodeId(string_id, namespace)
 
-    # GUID: g=uuid
+    # GUID NodeId (g=...)
     guid_match = _GUID_PATTERN.match(identifier_part)
     if guid_match:
         guid_id = UUID(guid_match.group(1))
@@ -171,23 +170,26 @@ class OPCUAClientConnector(BaseConnector):
             self._client.set_password(self._password)
 
         # Apply security policy if not None
-        if self._security_policy and self._security_policy != SecurityPolicy.NONE:
-            # Security requires certificate and key paths
-            if self._cert_path and self._key_path:
-                # Map security policy to asyncua security string
-                policy_map = {
-                    SecurityPolicy.BASIC128RSA15_SIGN: "Basic128Rsa15,Sign",
-                    SecurityPolicy.BASIC128RSA15_SIGN_ENCRYPT: "Basic128Rsa15,SignAndEncrypt",
-                    SecurityPolicy.BASIC256_SIGN: "Basic256,Sign",
-                    SecurityPolicy.BASIC256_SIGN_ENCRYPT: "Basic256,SignAndEncrypt",
-                    SecurityPolicy.BASIC256SHA256_SIGN: "Basic256Sha256,Sign",
-                    SecurityPolicy.BASIC256SHA256_SIGN_ENCRYPT: "Basic256Sha256,SignAndEncrypt",
-                }
-                security_string = policy_map.get(self._security_policy)
-                if security_string:
-                    await self._client.set_security_string(
-                        f"{security_string},{self._cert_path},{self._key_path}"
-                    )
+        if (
+            self._security_policy
+            and self._security_policy != SecurityPolicy.NONE
+            and self._cert_path
+            and self._key_path
+        ):
+            # Map security policy to asyncua security string
+            policy_map = {
+                SecurityPolicy.BASIC128RSA15_SIGN: "Basic128Rsa15,Sign",
+                SecurityPolicy.BASIC128RSA15_SIGN_ENCRYPT: "Basic128Rsa15,SignAndEncrypt",
+                SecurityPolicy.BASIC256_SIGN: "Basic256,Sign",
+                SecurityPolicy.BASIC256_SIGN_ENCRYPT: "Basic256,SignAndEncrypt",
+                SecurityPolicy.BASIC256SHA256_SIGN: "Basic256Sha256,Sign",
+                SecurityPolicy.BASIC256SHA256_SIGN_ENCRYPT: "Basic256Sha256,SignAndEncrypt",
+            }
+            security_string = policy_map.get(self._security_policy)
+            if security_string:
+                await self._client.set_security_string(
+                    f"{security_string},{self._cert_path},{self._key_path}"
+                )
 
         await self._client.connect()
 
@@ -221,7 +223,7 @@ class OPCUAClientConnector(BaseConnector):
 
         if not self._client:
             # Not connected - return bad quality
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             self._health.record_error("Not connected")
             return {
                 addr: TagValue(
@@ -251,7 +253,7 @@ class OPCUAClientConnector(BaseConnector):
                     )
 
             if not nodes:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 return {
                     addr: TagValue(
                         value=0,
@@ -267,9 +269,9 @@ class OPCUAClientConnector(BaseConnector):
 
             # Process results with per-value quality
             result: dict[str, TagValue] = {}
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
-            for addr, dv in zip(valid_addresses, data_values):
+            for addr, dv in zip(valid_addresses, data_values, strict=False):
                 quality = _status_code_to_quality(dv.StatusCode)
                 value = dv.Value.Value if dv.Value is not None else 0
 
@@ -300,7 +302,7 @@ class OPCUAClientConnector(BaseConnector):
             )
 
             # Return bad quality values
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             return {
                 addr: TagValue(
                     value=0,
@@ -353,7 +355,7 @@ class OPCUAClientConnector(BaseConnector):
         data_values = await self._client.read_values(nodes)
 
         # Process results
-        for addr, dv in zip(valid_addresses, data_values):
+        for addr, dv in zip(valid_addresses, data_values, strict=False):
             quality = _status_code_to_quality(dv.StatusCode)
 
             if quality.is_good() or quality == Quality.UNCERTAIN:

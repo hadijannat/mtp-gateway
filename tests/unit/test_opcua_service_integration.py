@@ -7,13 +7,13 @@ Tests bidirectional communication:
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from asyncua import ua
+from asyncua import Server, ua
 
+from mtp_gateway.adapters.northbound.opcua.nodes import MTPNodeBuilder
+from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
 from mtp_gateway.application.service_manager import ServiceManager
 from mtp_gateway.config.schema import (
     CompletionConfig,
@@ -28,7 +28,7 @@ from mtp_gateway.config.schema import (
     StateHooksConfig,
     WriteAction,
 )
-from mtp_gateway.domain.state_machine.packml import PackMLCommand, PackMLState
+from mtp_gateway.domain.state_machine.packml import PackMLState
 
 
 @pytest.fixture
@@ -110,8 +110,6 @@ class TestOPCUACommandHandling:
         writes a command value to the CommandOp variable, the server
         should route that command to the ServiceManager.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
             tag_manager=mock_tag_manager,
@@ -142,8 +140,6 @@ class TestOPCUACommandHandling:
         PackML commands are 1-10. Value 0 means "no command" and values
         above 10 are invalid. The server should silently ignore these.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
             tag_manager=mock_tag_manager,
@@ -177,8 +173,6 @@ class TestOPCUAStateSync:
         the OPC UA server should update the corresponding StateCur node
         so connected clients can observe the state change.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
             tag_manager=mock_tag_manager,
@@ -216,8 +210,6 @@ class TestOPCUAStateSync:
         When a service is started with a specific procedure ID,
         the OPC UA ProcedureCur node should reflect this selection.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
             tag_manager=mock_tag_manager,
@@ -255,8 +247,6 @@ class TestOPCUAServerWithoutServiceManager:
         server should function normally without a ServiceManager. It will
         expose the address space but service state changes won't be synced.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         # Create server without service_manager (using None or omitting)
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
@@ -280,8 +270,6 @@ class TestOPCUAServerWithoutServiceManager:
         If the server receives a state change for a service that doesn't
         have nodes registered (edge case), it should not crash.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
             tag_manager=mock_tag_manager,
@@ -310,17 +298,13 @@ class TestOPCUANodeBuilderServiceNodes:
         also a dict mapping service names to their key control nodes
         (CommandOp, StateCur, ProcedureCur).
         """
-        from asyncua import Server
-
-        from mtp_gateway.adapters.northbound.opcua.nodes import MTPNodeBuilder
-
         server = Server()
         await server.init()
         ns = await server.register_namespace("urn:test")
 
         builder = MTPNodeBuilder(server, ns, minimal_gateway_config.opcua.namespace_uri)
         (
-            all_nodes,
+            _all_nodes,
             service_nodes,
             _interlock_bindings,
             _tag_bindings,
@@ -356,8 +340,6 @@ class TestOPCUAServerServiceManagerIntegration:
         When the OPC UA server starts, it should register a callback
         with the ServiceManager to receive state change notifications.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
             tag_manager=mock_tag_manager,
@@ -402,8 +384,6 @@ class TestOPCUAServerServiceManagerIntegration:
         When the server stops, it should clean up by removing its
         callback from the ServiceManager's subscriber list.
         """
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         server = MTPOPCUAServer(
             config=minimal_gateway_config,
             tag_manager=mock_tag_manager,

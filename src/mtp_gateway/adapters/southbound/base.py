@@ -7,19 +7,22 @@ plus common utilities for health tracking, backoff, and error handling.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import random
-import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import structlog
 
+from mtp_gateway.config.schema import ConnectorType
+from mtp_gateway.domain.model.tags import Quality, TagValue
+
 if TYPE_CHECKING:
     from mtp_gateway.config.schema import ConnectorConfig
-    from mtp_gateway.domain.model.tags import TagDefinition, TagValue
+    from mtp_gateway.domain.model.tags import TagDefinition
 
 logger = structlog.get_logger(__name__)
 
@@ -55,12 +58,12 @@ class ConnectorHealth:
 
     def record_success(self) -> None:
         """Record a successful operation."""
-        self.last_success = datetime.now(timezone.utc)
+        self.last_success = datetime.now(UTC)
         self.consecutive_errors = 0
 
     def record_error(self, message: str) -> None:
         """Record a failed operation."""
-        self.last_error = datetime.now(timezone.utc)
+        self.last_error = datetime.now(UTC)
         self.last_error_message = message
         self.consecutive_errors += 1
         self.total_errors += 1
@@ -105,7 +108,7 @@ class ConnectorPort(Protocol):
         """
         ...
 
-    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, TagValue]:
+    async def read_tag_values(self, tags: list[TagDefinition]) -> dict[str, TagValue]:
         """Read multiple tags with datatype metadata.
 
         Returns a mapping of tag name to TagValue.
@@ -128,7 +131,7 @@ class ConnectorPort(Protocol):
         """
         ...
 
-    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+    async def write_tag_value(self, tag: TagDefinition, value: Any) -> bool:
         """Write a value to a tag using its definition metadata."""
         ...
 
@@ -220,8 +223,6 @@ class BaseConnector(ABC):
 
     async def read_tags(self, addresses: list[str]) -> dict[str, TagValue]:
         """Read tags with error handling and quality tracking."""
-        from mtp_gateway.domain.model.tags import Quality, TagValue
-
         if not addresses:
             return {}
 
@@ -233,7 +234,7 @@ class BaseConnector(ABC):
 
             # Convert raw values to TagValue with good quality
             result: dict[str, TagValue] = {}
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             for addr in addresses:
                 if addr in raw_values:
                     result[addr] = TagValue(
@@ -259,7 +260,7 @@ class BaseConnector(ABC):
             )
 
             # Return bad quality values
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             return {
                 addr: TagValue(
                     value=0,
@@ -269,14 +270,12 @@ class BaseConnector(ABC):
                 for addr in addresses
             }
 
-    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, TagValue]:
+    async def read_tag_values(self, tags: list[TagDefinition]) -> dict[str, TagValue]:
         """Read tags using their definitions.
 
         Default implementation maps TagDefinition -> address and delegates
         to read_tags(). Connectors may override for protocol-specific decoding.
         """
-        from mtp_gateway.domain.model.tags import TagValue
-
         if not tags:
             return {}
 
@@ -305,7 +304,7 @@ class BaseConnector(ABC):
             )
             return False
 
-    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+    async def write_tag_value(self, tag: TagDefinition, value: Any) -> bool:
         """Write a tag using its definition metadata."""
         return await self.write_tag(tag.address, value)
 
@@ -331,10 +330,8 @@ class BaseConnector(ABC):
             )
             await asyncio.sleep(delay)
 
-            try:
+            with contextlib.suppress(Exception):
                 await self._do_disconnect()
-            except Exception:
-                pass
 
             try:
                 await self._do_connect()
@@ -398,31 +395,35 @@ def create_connector(config: ConnectorConfig) -> ConnectorPort:
     Raises:
         ValueError: If connector type is not supported
     """
-    from mtp_gateway.config.schema import ConnectorType
-
     # Import implementations here to avoid circular imports
     if config.type == ConnectorType.MODBUS_TCP:
-        from mtp_gateway.adapters.southbound.modbus.driver import ModbusTCPConnector
+        from mtp_gateway.adapters.southbound.modbus.driver import (  # noqa: PLC0415
+            ModbusTCPConnector,
+        )
 
         return ModbusTCPConnector(config)
 
     elif config.type == ConnectorType.MODBUS_RTU:
-        from mtp_gateway.adapters.southbound.modbus.driver import ModbusRTUConnector
+        from mtp_gateway.adapters.southbound.modbus.driver import (  # noqa: PLC0415
+            ModbusRTUConnector,
+        )
 
         return ModbusRTUConnector(config)
 
     elif config.type == ConnectorType.S7:
-        from mtp_gateway.adapters.southbound.s7.driver import S7Connector
+        from mtp_gateway.adapters.southbound.s7.driver import S7Connector  # noqa: PLC0415
 
         return S7Connector(config)
 
     elif config.type == ConnectorType.EIP:
-        from mtp_gateway.adapters.southbound.eip.driver import EIPConnector
+        from mtp_gateway.adapters.southbound.eip.driver import EIPConnector  # noqa: PLC0415
 
         return EIPConnector(config)
 
     elif config.type == ConnectorType.OPCUA_CLIENT:
-        from mtp_gateway.adapters.southbound.opcua_client.driver import OPCUAClientConnector
+        from mtp_gateway.adapters.southbound.opcua_client.driver import (  # noqa: PLC0415
+            OPCUAClientConnector,
+        )
 
         return OPCUAClientConnector(config)
 

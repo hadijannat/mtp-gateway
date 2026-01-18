@@ -4,16 +4,26 @@ from __future__ import annotations
 
 import asyncio
 import signal
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import structlog
 
+from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
+from mtp_gateway.adapters.southbound.base import ConnectorPort, create_connector
+from mtp_gateway.application.service_manager import ServiceManager
+from mtp_gateway.application.tag_manager import TagManager
+from mtp_gateway.config.loader import load_config
+from mtp_gateway.domain.rules.interlocks import (
+    ComparisonOperator,
+    InterlockBinding,
+    InterlockEvaluator,
+)
+from mtp_gateway.domain.rules.safety import SafetyController
+from mtp_gateway.observability.logging import setup_logging
+
 if TYPE_CHECKING:
-    from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-    from mtp_gateway.adapters.southbound.base import ConnectorPort
-    from mtp_gateway.application.service_manager import ServiceManager
-    from mtp_gateway.application.tag_manager import TagManager
+    from pathlib import Path
+
     from mtp_gateway.config.schema import GatewayConfig
 
 logger = structlog.get_logger(__name__)
@@ -55,8 +65,6 @@ class GatewayRuntime:
 
     async def _init_connectors(self) -> None:
         """Initialize southbound connectors."""
-        from mtp_gateway.adapters.southbound.base import create_connector
-
         for conn_config in self.config.connectors:
             logger.info("Initializing connector", name=conn_config.name, type=conn_config.type)
             connector = create_connector(conn_config)
@@ -65,9 +73,6 @@ class GatewayRuntime:
 
     async def _init_tag_manager(self) -> None:
         """Initialize tag manager for polling."""
-        from mtp_gateway.application.tag_manager import TagManager
-        from mtp_gateway.domain.rules.safety import SafetyController
-
         safety = SafetyController.from_config(self.config.safety)
         self._tag_manager = TagManager(
             connectors=self._connectors,
@@ -78,9 +83,6 @@ class GatewayRuntime:
 
     async def _init_service_manager(self) -> None:
         """Initialize service manager for state machine execution."""
-        from mtp_gateway.application.service_manager import ServiceManager
-        from mtp_gateway.domain.rules.safety import SafetyController
-
         interlock_evaluator = self._build_interlock_evaluator()
         safety = SafetyController.from_config(self.config.safety)
         self._service_manager = ServiceManager(
@@ -93,8 +95,6 @@ class GatewayRuntime:
 
     async def _init_opcua_server(self) -> None:
         """Initialize OPC UA server."""
-        from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-
         self._opcua_server = MTPOPCUAServer(
             config=self.config,
             tag_manager=self._tag_manager,
@@ -104,12 +104,6 @@ class GatewayRuntime:
 
     def _build_interlock_evaluator(self) -> InterlockEvaluator | None:
         """Build interlock evaluator from configuration."""
-        from mtp_gateway.domain.rules.interlocks import (
-            ComparisonOperator,
-            InterlockBinding,
-            InterlockEvaluator,
-        )
-
         if not self.config.mtp.data_assemblies:
             return None
 
@@ -168,16 +162,13 @@ class GatewayRuntime:
         self._shutdown_event.set()
 
 
-async def run_gateway(config_path: Path) -> None:
+async def run_gateway(config_path: Path, override_path: Path | None = None) -> None:
     """Main entry point for running the gateway."""
-    from mtp_gateway.config.loader import load_config
-    from mtp_gateway.observability.logging import setup_logging
-
     # Setup logging first
     setup_logging()
 
     # Load configuration
-    config = load_config(config_path)
+    config = load_config(config_path, override_path=override_path)
 
     # Create and start runtime
     runtime = GatewayRuntime(config)
@@ -196,7 +187,7 @@ async def run_gateway(config_path: Path) -> None:
 
 def main() -> None:
     """CLI entry point - delegates to typer app."""
-    from mtp_gateway.cli.app import app
+    from mtp_gateway.cli.app import app  # noqa: PLC0415
 
     app()
 

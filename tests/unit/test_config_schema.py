@@ -15,7 +15,6 @@ from mtp_gateway.config.schema import (
     InterlockBindingConfig,
     ModbusTCPConnectorConfig,
     MonitorLimitsConfig,
-    OPCUAConfig,
     TagConfig,
 )
 

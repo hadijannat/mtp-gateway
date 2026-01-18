@@ -129,7 +129,10 @@ class InterlockEvaluator:
         if is_interlocked:
             return InterlockResult(
                 interlocked=True,
-                reason=f"Interlock active: {binding.source_tag} {binding.condition.value} {binding.ref_value}",
+                reason=(
+                    "Interlock active: "
+                    f"{binding.source_tag} {binding.condition.value} {binding.ref_value}"
+                ),
                 source_tag=binding.source_tag,
             )
 

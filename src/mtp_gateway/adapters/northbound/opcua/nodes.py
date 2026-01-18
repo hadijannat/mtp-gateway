@@ -13,26 +13,12 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 from asyncua import Server, ua
-from asyncua.common.node import Node
 
 from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
-from mtp_gateway.domain.model.data_assemblies import (
-    DATA_ASSEMBLY_CLASSES,
-    AnaServParam,
-    AnaView,
-    AnaVlv,
-    BinDrv,
-    BinServParam,
-    BinView,
-    BinVlv,
-    DIntServParam,
-    DIntView,
-    PIDCtrl,
-    StringServParam,
-    StringView,
-)
 
 if TYPE_CHECKING:
+    from asyncua.common.node import Node
+
     from mtp_gateway.config.schema import (
         DataAssemblyConfig,
         GatewayConfig,
@@ -43,7 +29,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def _variant_type_for_tag(tag_config: "TagConfig") -> ua.VariantType:
+def _variant_type_for_tag(tag_config: TagConfig) -> ua.VariantType:
     """Map TagConfig datatype to OPC UA VariantType."""
     datatype = tag_config.datatype
     if datatype.value == "bool":
@@ -188,7 +174,7 @@ class MTPNodeBuilder:
         parent: Node,
         pea_root: str,
         config: DataAssemblyConfig,
-        tag_lookup: dict[str, "TagConfig"],
+        tag_lookup: dict[str, TagConfig],
     ) -> None:
         """Build a data assembly object with its variables."""
         da_name = config.name
@@ -227,7 +213,7 @@ class MTPNodeBuilder:
 
         elif da_type == "PIDCtrl":
             # PID controller
-            await self._add_pid_variables(da_obj, base_path, config, binding_writable)
+            await self._add_pid_variables(da_obj, base_path, binding_writable)
 
         # Add common WQC (worst quality code)
         await self._add_variable(
@@ -609,7 +595,6 @@ class MTPNodeBuilder:
         self,
         parent: Node,
         base_path: str,
-        config: DataAssemblyConfig,
         binding_writable: dict[str, bool],
     ) -> None:
         """Add variables for PID controller."""
@@ -894,7 +879,7 @@ class MTPNodeBuilder:
         self,
         parent: Node,
         pea_root: str,
-        tag_config: "TagConfig",
+        tag_config: TagConfig,
     ) -> None:
         """Build a variable for direct tag access."""
         base_path = self._node_ids.path(pea_root, "Tags")

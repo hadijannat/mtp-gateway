@@ -16,12 +16,11 @@ import pytest
 
 # These imports will fail initially - module doesn't exist yet
 from mtp_gateway.domain.rules.interlocks import (
-    InterlockBinding,
-    InterlockResult,
-    InterlockEvaluator,
     ComparisonOperator,
+    InterlockBinding,
+    InterlockEvaluator,
+    InterlockResult,
 )
-
 
 # =============================================================================
 # InterlockBinding Tests

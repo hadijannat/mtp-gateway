@@ -7,18 +7,19 @@ Supports THIN, THICK, and HYBRID proxy modes per VDI 2658.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 
 from mtp_gateway.config.schema import ProxyMode, ServiceConfig, WriteAction
 from mtp_gateway.domain.model.services import (
-    CompletionSpec,
     ServiceDefinition,
     ServiceRuntimeState,
 )
 from mtp_gateway.domain.model.tags import Quality
+from mtp_gateway.domain.rules.interlocks import InterlockResult
 from mtp_gateway.domain.state_machine.packml import (
     PackMLCommand,
     PackMLState,
@@ -29,7 +30,7 @@ from mtp_gateway.domain.state_machine.packml import (
 if TYPE_CHECKING:
     from mtp_gateway.adapters.persistence import PersistenceRepository
     from mtp_gateway.application.tag_manager import TagManager
-    from mtp_gateway.domain.rules.interlocks import InterlockEvaluator, InterlockResult
+    from mtp_gateway.domain.rules.interlocks import InterlockEvaluator
     from mtp_gateway.domain.rules.safety import SafetyController
 
 logger = structlog.get_logger(__name__)
@@ -83,6 +84,7 @@ class ServiceManager:
         self._subscribers: list[StateChangeCallback] = []
         self._completion_tasks: dict[str, asyncio.Task[None]] = {}
         self._sync_tasks: dict[str, asyncio.Task[None]] = {}
+        self._background_tasks: set[asyncio.Task[object]] = set()
         self._running = False
         self._lock = asyncio.Lock()
 
@@ -189,6 +191,13 @@ class ServiceManager:
             await asyncio.gather(*self._sync_tasks.values(), return_exceptions=True)
         self._sync_tasks.clear()
 
+        # Cancel background tasks
+        for task in self._background_tasks:
+            task.cancel()
+        if self._background_tasks:
+            await asyncio.gather(*self._background_tasks, return_exceptions=True)
+        self._background_tasks.clear()
+
         logger.info("Service manager stopped")
 
     async def emergency_stop(self) -> None:
@@ -207,7 +216,7 @@ class ServiceManager:
         # Log emergency stop event
         if self._persistence:
             await self._persistence.log_command(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 command_type="EMERGENCY_STOP",
                 target="ALL_SERVICES",
                 parameters={},
@@ -337,7 +346,7 @@ class ServiceManager:
 
             # Start completion monitor if entering EXECUTE
             if result.to_state == PackMLState.EXECUTE:
-                runtime.execute_start_time = datetime.now(timezone.utc)
+                runtime.execute_start_time = datetime.now(UTC)
                 self._start_completion_monitor(runtime)
 
             # Auto-complete acting states for thick mode
@@ -425,7 +434,7 @@ class ServiceManager:
 
             # Start completion monitor if now in EXECUTE
             if result.to_state == PackMLState.EXECUTE:
-                runtime.execute_start_time = datetime.now(timezone.utc)
+                runtime.execute_start_time = datetime.now(UTC)
                 self._start_completion_monitor(runtime)
 
     def _is_acting_state(self, state: PackMLState) -> bool:
@@ -488,7 +497,7 @@ class ServiceManager:
                 # Check timeout
                 if completion.timeout_s and runtime.execute_start_time:
                     elapsed = (
-                        datetime.now(timezone.utc) - runtime.execute_start_time
+                        datetime.now(UTC) - runtime.execute_start_time
                     ).total_seconds()
                     if elapsed >= completion.timeout_s:
                         logger.warning(
@@ -579,9 +588,11 @@ class ServiceManager:
         if self._persistence:
             runtime = self._services.get(service_name)
             if runtime:
-                asyncio.create_task(
-                    self._persist_service_state(service_name, runtime),
-                    name=f"persist_{service_name}",
+                self._track_task(
+                    asyncio.create_task(
+                        self._persist_service_state(service_name, runtime),
+                        name=f"persist_{service_name}",
+                    )
                 )
 
         for callback in self._subscribers:
@@ -674,8 +685,6 @@ class ServiceManager:
         Returns:
             InterlockResult indicating if service is interlocked
         """
-        from mtp_gateway.domain.rules.interlocks import InterlockResult
-
         if not self._interlock_evaluator:
             return InterlockResult(interlocked=False)
 
@@ -689,3 +698,8 @@ class ServiceManager:
         return self._interlock_evaluator.check_service_interlocks(
             service_name, tag_values
         )
+
+    def _track_task(self, task: asyncio.Task[object]) -> None:
+        """Track background tasks so they aren't garbage-collected."""
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)

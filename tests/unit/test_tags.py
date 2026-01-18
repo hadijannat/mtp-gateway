@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
+from mtp_gateway.adapters.persistence import PersistenceRepository
+from mtp_gateway.application.tag_manager import TagManager
 from mtp_gateway.domain.model.tags import (
     DataType,
     Quality,
@@ -46,10 +48,10 @@ class TestDataType:
     """Tests for DataType enum."""
 
     def test_python_type(self) -> None:
-        assert DataType.BOOL.python_type() == bool
-        assert DataType.INT16.python_type() == int
-        assert DataType.FLOAT32.python_type() == float
-        assert DataType.STRING.python_type() == str
+        assert DataType.BOOL.python_type() is bool
+        assert DataType.INT16.python_type() is int
+        assert DataType.FLOAT32.python_type() is float
+        assert DataType.STRING.python_type() is str
 
     def test_byte_size(self) -> None:
         assert DataType.BOOL.byte_size() == 1
@@ -63,14 +65,14 @@ class TestTagValue:
     """Tests for TagValue immutable value object."""
 
     def test_create_tag_value(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         tv = TagValue(value=42.5, timestamp=now, quality=Quality.GOOD)
         assert tv.value == 42.5
         assert tv.timestamp == now
         assert tv.quality == Quality.GOOD
 
     def test_tag_value_is_frozen(self) -> None:
-        tv = TagValue(value=42.5, timestamp=datetime.now(timezone.utc), quality=Quality.GOOD)
+        tv = TagValue(value=42.5, timestamp=datetime.now(UTC), quality=Quality.GOOD)
         with pytest.raises(AttributeError):
             tv.value = 100  # type: ignore[misc]
 
@@ -226,11 +228,6 @@ class TestTagManagerPersistence:
     @pytest.mark.asyncio
     async def test_tag_manager_accepts_persistence_parameter(self) -> None:
         """TagManager should accept optional persistence parameter."""
-        from unittest.mock import MagicMock
-
-        from mtp_gateway.adapters.persistence import PersistenceRepository
-        from mtp_gateway.application.tag_manager import TagManager
-
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
 
@@ -245,8 +242,6 @@ class TestTagManagerPersistence:
     @pytest.mark.asyncio
     async def test_tag_manager_works_without_persistence(self) -> None:
         """TagManager should work without persistence parameter."""
-        from mtp_gateway.application.tag_manager import TagManager
-
         # Should not raise
         tm = TagManager(
             connectors={},

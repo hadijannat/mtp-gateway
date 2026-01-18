@@ -13,13 +13,9 @@ Categories:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, ClassVar
-
-if TYPE_CHECKING:
-    from mtp_gateway.domain.model.tags import Quality, TagValue
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 
 class DataAssemblyType(Enum):

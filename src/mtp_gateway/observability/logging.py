@@ -21,8 +21,10 @@ def setup_logging(
     """Configure structured logging for the gateway.
 
     Args:
-        level: Log level (DEBUG, INFO, WARNING, ERROR). Defaults to MTP_LOG_LEVEL env var or INFO.
-        log_format: Output format ('console' or 'json'). Defaults to MTP_LOG_FORMAT env var or 'console'.
+        level: Log level (DEBUG, INFO, WARNING, ERROR). Defaults to MTP_LOG_LEVEL env var
+            or INFO.
+        log_format: Output format ('console' or 'json'). Defaults to MTP_LOG_FORMAT env var
+            or 'console'.
     """
     # Get settings from environment or parameters
     level = level or os.environ.get("MTP_LOG_LEVEL", "INFO")
@@ -51,13 +53,15 @@ def setup_logging(
 
     if log_format == "json":
         # JSON format for production
-        processors = shared_processors + [
+        processors = [
+            *shared_processors,
             structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ]
     else:
         # Console format for development
-        processors = shared_processors + [
+        processors = [
+            *shared_processors,
             structlog.dev.ConsoleRenderer(
                 colors=True,
                 exception_formatter=structlog.dev.plain_traceback,

@@ -9,7 +9,7 @@ Tags represent data points from PLCs mapped to the gateway. Each tag has:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -139,13 +139,13 @@ class TagValue:
     @classmethod
     def good(cls, value: float | int | bool | str) -> TagValue:
         """Create a good quality TagValue with current timestamp."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return cls(value=value, timestamp=now, quality=Quality.GOOD)
 
     @classmethod
     def bad_no_comm(cls, last_value: float | int | bool | str | None = None) -> TagValue:
         """Create a bad quality TagValue for communication failure."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return cls(
             value=last_value if last_value is not None else 0,
             timestamp=now,
@@ -155,7 +155,7 @@ class TagValue:
     @classmethod
     def uncertain_last_usable(cls, last_value: TagValue) -> TagValue:
         """Create uncertain quality from a previously good value."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return cls(
             value=last_value.value,
             timestamp=now,

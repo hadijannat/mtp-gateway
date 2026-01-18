@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import uuid
 import zipfile
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from xml.dom import minidom
 from xml.etree import ElementTree as ET
 
 import structlog
@@ -24,6 +24,8 @@ import structlog
 from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from mtp_gateway.config.schema import (
         DataAssemblyConfig,
         GatewayConfig,
@@ -152,7 +154,7 @@ class MTPManifestGenerator:
         if self._config.gateway.vendor_url:
             ET.SubElement(ai, "WriterVendorURL").text = self._config.gateway.vendor_url
         ET.SubElement(ai, "WriterVersion").text = self._config.gateway.version
-        ET.SubElement(ai, "LastWritingDateTime").text = datetime.now(timezone.utc).isoformat()
+        ET.SubElement(ai, "LastWritingDateTime").text = datetime.now(UTC).isoformat()
 
         return root
 
@@ -444,9 +446,6 @@ class MTPManifestGenerator:
 
     def _to_xml_string(self, root: ET.Element) -> str:
         """Convert element tree to formatted XML string."""
-        # Use minidom for pretty printing
-        from xml.dom import minidom
-
         rough_string = ET.tostring(root, encoding="unicode")
         reparsed = minidom.parseString(rough_string)
         return reparsed.toprettyxml(indent="  ", encoding=None)
@@ -456,7 +455,7 @@ class MTPManifestGenerator:
         return f"""MTP Package Information
 Name: {self._pea_name}
 Version: {self._config.gateway.version}
-Generated: {datetime.now(timezone.utc).isoformat()}
+Generated: {datetime.now(UTC).isoformat()}
 Generator: MTP Gateway
 """
 
@@ -472,7 +471,7 @@ Generator: MTP Gateway
         # Data assembly nodes
         for da in self._config.mtp.data_assemblies:
             da_base = f"{base}.DataAssemblies.{da.name}"
-            for attr_name in da.bindings.keys():
+            for attr_name in da.bindings:
                 node_ids.append(self._node_ids.expanded_node_id(f"{da_base}.{attr_name}"))
 
         # Service nodes

@@ -12,21 +12,19 @@ These tests are written FIRST per TDD - they will fail until implementation.
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from mtp_gateway.application.service_manager import ServiceManager
 from mtp_gateway.config.schema import ProxyMode, ServiceConfig
-from mtp_gateway.domain.model.tags import Quality, TagValue
+from mtp_gateway.domain.model.tags import TagValue
 from mtp_gateway.domain.rules.interlocks import (
     ComparisonOperator,
     InterlockBinding,
     InterlockEvaluator,
 )
 from mtp_gateway.domain.state_machine.packml import PackMLCommand, PackMLState
-
 
 # =============================================================================
 # Fixtures

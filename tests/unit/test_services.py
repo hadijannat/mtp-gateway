@@ -28,6 +28,7 @@ from mtp_gateway.domain.model.services import (
     ServiceRuntimeState,
     StateHooks,
 )
+from mtp_gateway.domain.model.tags import Quality
 from mtp_gateway.domain.state_machine.packml import PackMLState, PackMLStateMachine
 
 
@@ -462,8 +463,6 @@ class TestServiceRuntimeState:
 
     def test_creation(self, service_def: ServiceDefinition) -> None:
         """ServiceRuntimeState should be created with required fields."""
-        from mtp_gateway.domain.model.tags import Quality
-
         sm = PackMLStateMachine("TestService")
         runtime = ServiceRuntimeState(
             definition=service_def,
@@ -480,8 +479,6 @@ class TestServiceRuntimeState:
 
     def test_mutable(self, service_def: ServiceDefinition) -> None:
         """ServiceRuntimeState should be mutable (slots but not frozen)."""
-        from mtp_gateway.domain.model.tags import Quality
-
         sm = PackMLStateMachine("TestService")
         runtime = ServiceRuntimeState(
             definition=service_def,
@@ -500,8 +497,6 @@ class TestServiceRuntimeState:
 
     def test_tracks_procedure_id(self, service_def: ServiceDefinition) -> None:
         """ServiceRuntimeState should track current procedure ID."""
-        from mtp_gateway.domain.model.tags import Quality
-
         sm = PackMLStateMachine("TestService")
         runtime = ServiceRuntimeState(
             definition=service_def,

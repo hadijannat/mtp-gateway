@@ -7,8 +7,8 @@ and command audit logging. Uses SQLAlchemy 2.0 async mode with aiosqlite.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from sqlalchemy import delete, select
@@ -21,7 +21,9 @@ from mtp_gateway.adapters.persistence.models import (
     ServiceStateSnapshot,
     TagValueRecord,
 )
-from mtp_gateway.domain.model.tags import Quality
+
+if TYPE_CHECKING:
+    from mtp_gateway.domain.model.tags import Quality
 
 logger = structlog.get_logger(__name__)
 
@@ -109,7 +111,7 @@ class PersistenceRepository:
         # Convert state enum to string if needed
         state_str = state.name if hasattr(state, "name") else str(state)
         params_json = json.dumps(parameters) if parameters else "{}"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         async with self._session_factory() as session:
             # Use SQLite upsert (INSERT OR REPLACE via on_conflict_do_update)
@@ -157,10 +159,9 @@ class PersistenceRepository:
             result = await session.execute(stmt)
             snapshot = result.scalar_one_or_none()
 
-            if snapshot:
+            if snapshot and isinstance(snapshot.parameters, str):
                 # Deserialize parameters JSON
-                if isinstance(snapshot.parameters, str):
-                    snapshot.parameters = json.loads(snapshot.parameters)
+                snapshot.parameters = json.loads(snapshot.parameters)
 
             return snapshot
 
@@ -272,10 +273,10 @@ class PersistenceRepository:
                     record.value = json.loads(record.value)
                 # SQLite doesn't preserve timezone info, restore UTC
                 if record.timestamp and record.timestamp.tzinfo is None:
-                    record.timestamp = record.timestamp.replace(tzinfo=timezone.utc)
+                    record.timestamp = record.timestamp.replace(tzinfo=UTC)
                 if record.source_timestamp and record.source_timestamp.tzinfo is None:
                     record.source_timestamp = record.source_timestamp.replace(
-                        tzinfo=timezone.utc
+                        tzinfo=UTC
                     )
 
             return records
@@ -347,6 +348,6 @@ class PersistenceRepository:
                     log.parameters = json.loads(log.parameters)
                 # SQLite doesn't preserve timezone info, restore UTC
                 if log.timestamp and log.timestamp.tzinfo is None:
-                    log.timestamp = log.timestamp.replace(tzinfo=timezone.utc)
+                    log.timestamp = log.timestamp.replace(tzinfo=UTC)
 
             return logs

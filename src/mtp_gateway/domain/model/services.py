@@ -7,8 +7,10 @@ These models are used by the ServiceManager to execute service lifecycle.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 from mtp_gateway.config.schema import (
     ComparisonOp,
@@ -19,11 +21,10 @@ from mtp_gateway.config.schema import (
     StateHooksConfig,
     WriteAction,
 )
-from mtp_gateway.domain.model.tags import Quality
 from mtp_gateway.domain.state_machine.packml import PackMLState, PackMLStateMachine
 
 if TYPE_CHECKING:
-    pass
+    from mtp_gateway.domain.model.tags import Quality
 
 
 @dataclass(frozen=True, slots=True)

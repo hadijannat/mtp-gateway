@@ -133,14 +133,13 @@ def parse_eip_address(address_str: str) -> ParsedEIPAddress:
     return ParsedEIPAddress(tag_name=address_str, element=None, bit=None)
 
 
-def _build_tag_string(address: str, parsed: ParsedEIPAddress) -> str:
+def _build_tag_string(parsed: ParsedEIPAddress) -> str:
     """Build the pycomm3-compatible tag string from parsed address.
 
     pycomm3 expects the full tag path including array indices.
     Bit access is handled separately.
 
     Args:
-        address: Original address string
         parsed: Parsed address components
 
     Returns:
@@ -238,7 +237,7 @@ class EIPConnector(BaseConnector):
         for addr in addresses:
             try:
                 parsed = parse_eip_address(addr)
-                tag_str = _build_tag_string(addr, parsed)
+                tag_str = _build_tag_string(parsed)
                 tag_to_address[tag_str] = addr
                 parsed_addresses[addr] = parsed
             except ValueError as e:
@@ -322,18 +321,14 @@ class EIPConnector(BaseConnector):
         driver = self._driver
 
         # Build tag string for pycomm3
-        tag_str = _build_tag_string(address, parsed)
+        tag_str = _build_tag_string(parsed)
 
         # Handle bit writes
         write_value = value
-        if parsed.bit is not None:
-            # For bit writes, pycomm3 expects the full value
-            # We need to read-modify-write, or use the bit index syntax
-            # pycomm3 may support Tag.N syntax for bit access
-            # For now, we'll pass the value as-is and let pycomm3 handle it
-            # If value is bool, convert to int for bit manipulation
-            if isinstance(value, bool):
-                write_value = value
+        if parsed.bit is not None and isinstance(value, bool):
+            # For bit writes, pycomm3 expects the full value.
+            # For now, pass the boolean through and let pycomm3 handle it.
+            write_value = value
 
         def write_sync() -> Any:
             return driver.write((tag_str, write_value))

@@ -7,15 +7,15 @@ Uses asyncua for the server implementation.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 from asyncua import Server, ua
 from asyncua.common.callback import CallbackType, ServerItemCallback
 
-from mtp_gateway.adapters.northbound.opcua.nodes import build_address_space
 from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
+from mtp_gateway.adapters.northbound.opcua.nodes import build_address_space
 from mtp_gateway.domain.model.tags import Quality, TagValue
 from mtp_gateway.domain.state_machine.packml import PackMLCommand, PackMLState
 
@@ -79,6 +79,7 @@ class MTPOPCUAServer:
         self._command_node_ids: dict[str, str] = {}  # {nodeid_str: service_name}
         self._procedure_node_ids: dict[str, str] = {}  # {nodeid_str: service_name}
         self._pending_procedures: dict[str, int] = {}
+        self._background_tasks: set[asyncio.Task[object]] = set()
         self._running = False
 
     async def start(self) -> None:
@@ -177,6 +178,11 @@ class MTPOPCUAServer:
             await self._server.stop()
             self._server = None
 
+        if self._background_tasks:
+            for task in self._background_tasks:
+                task.cancel()
+            self._background_tasks.clear()
+
         self._running = False
         logger.info("OPC UA server stopped")
 
@@ -248,6 +254,11 @@ class MTPOPCUAServer:
             if node:
                 self._nodeid_to_tag[node.nodeid.to_string()] = tag_name
 
+    def _track_task(self, task: asyncio.Task[object]) -> None:
+        """Track background tasks so they aren't garbage-collected."""
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
     def _on_pre_write(self, event: ServerItemCallback, _dispatcher: object) -> None:
         """Handle OPC UA write requests before they are applied."""
         if not self._running:
@@ -275,17 +286,21 @@ class MTPOPCUAServer:
 
             if node_id_str in self._command_node_ids:
                 service_name = self._command_node_ids[node_id_str]
-                asyncio.create_task(self._handle_command_value(service_name, int(value)))
+                self._track_task(
+                    asyncio.create_task(self._handle_command_value(service_name, int(value)))
+                )
                 continue
 
             if node_id_str in self._procedure_node_ids:
                 service_name = self._procedure_node_ids[node_id_str]
-                asyncio.create_task(self._handle_procedure_value(service_name, int(value)))
+                self._track_task(
+                    asyncio.create_task(self._handle_procedure_value(service_name, int(value)))
+                )
                 continue
 
             tag_name = self._nodeid_to_tag.get(node_id_str)
             if tag_name:
-                asyncio.create_task(self._tag_manager.write_tag(tag_name, value))
+                self._track_task(asyncio.create_task(self._tag_manager.write_tag(tag_name, value)))
 
     def _on_tag_change(self, tag_name: str, value: TagValue) -> None:
         """Handle tag value change - update OPC UA nodes.
@@ -299,12 +314,12 @@ class MTPOPCUAServer:
         # Update data assembly nodes bound to this tag
         for node_path in self._tag_bindings.get(tag_name, []):
             if node_path in self._nodes:
-                asyncio.create_task(self._update_node_value(node_path, value))
+                self._track_task(asyncio.create_task(self._update_node_value(node_path, value)))
 
         # Update direct tag node if present
         node_path = self._tag_nodes.get(tag_name)
         if node_path and node_path in self._nodes:
-            asyncio.create_task(self._update_node_value(node_path, value))
+            self._track_task(asyncio.create_task(self._update_node_value(node_path, value)))
 
         # Check if this tag is bound to any Interlock variables
         if tag_name in self._interlock_bindings:
@@ -318,8 +333,10 @@ class MTPOPCUAServer:
                         timestamp=value.timestamp,
                         source_timestamp=value.source_timestamp,
                     )
-                    asyncio.create_task(
-                        self._update_node_value(interlock_node_path, interlock_tag_value)
+                    self._track_task(
+                        asyncio.create_task(
+                            self._update_node_value(interlock_node_path, interlock_tag_value)
+                        )
                     )
 
     async def _update_node_value(self, node_id: str, value: TagValue) -> None:
@@ -335,7 +352,7 @@ class MTPOPCUAServer:
                 Value=ua.Variant(value.value),
                 StatusCode=quality_to_status_code(value.quality),
                 SourceTimestamp=value.source_timestamp or value.timestamp,
-                ServerTimestamp=datetime.now(timezone.utc),
+                ServerTimestamp=datetime.now(UTC),
             )
             await node.write_value(dv)
 
@@ -358,7 +375,9 @@ class MTPOPCUAServer:
             return
 
         if service_name in self._service_nodes:
-            asyncio.create_task(self._update_service_state(service_name, to_state))
+            self._track_task(
+                asyncio.create_task(self._update_service_state(service_name, to_state))
+            )
 
             logger.debug(
                 "Service state change scheduled for OPC UA update",

@@ -8,9 +8,9 @@ state transitions.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, Awaitable
 
 
 class PackMLState(Enum):
@@ -108,7 +108,7 @@ _COMMAND_TRANSITIONS: dict[tuple[PackMLState, PackMLCommand], PackMLState] = {
     (PackMLState.COMPLETED, PackMLCommand.ABORT): PackMLState.ABORTING,
     # From ABORTED
     (PackMLState.ABORTED, PackMLCommand.CLEAR): PackMLState.CLEARING,
-    # From acting states (–ING states) - ABORT is typically allowed
+    # From acting states (-ING states) - ABORT is typically allowed
     (PackMLState.STARTING, PackMLCommand.ABORT): PackMLState.ABORTING,
     (PackMLState.STARTING, PackMLCommand.STOP): PackMLState.STOPPING,
     (PackMLState.COMPLETING, PackMLCommand.ABORT): PackMLState.ABORTING,
