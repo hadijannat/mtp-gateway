@@ -25,7 +25,10 @@ async def repository() -> PersistenceRepository:
     """Create a PersistenceRepository with in-memory SQLite."""
     repo = PersistenceRepository(db_path=":memory:")
     await repo.initialize()
-    return repo
+    try:
+        yield repo
+    finally:
+        await repo.close()
 
 
 class TestPersistenceRepositoryInitialization:
@@ -36,20 +39,26 @@ class TestPersistenceRepositoryInitialization:
         """initialize() should create all required tables."""
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
-        # Should not raise - tables exist
-        await repo.save_service_state(
-            service_name="TestService",
-            state=PackMLState.IDLE,
-            procedure_id=None,
-            parameters={},
-        )
+        try:
+            # Should not raise - tables exist
+            await repo.save_service_state(
+                service_name="TestService",
+                state=PackMLState.IDLE,
+                procedure_id=None,
+                parameters={},
+            )
+        finally:
+            await repo.close()
 
     @pytest.mark.asyncio
     async def test_initialize_is_idempotent(self) -> None:
         """initialize() should be safe to call multiple times."""
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
-        await repo.initialize()  # Should not raise
+        try:
+            await repo.initialize()  # Should not raise
+        finally:
+            await repo.close()
 
 
 class TestServiceStatePersistence:

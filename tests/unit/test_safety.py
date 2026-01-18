@@ -579,34 +579,36 @@ class TestServiceManagerEmergencyStop:
         """emergency_stop() should log to command audit log if persistence available."""
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
+        try:
+            safety = SafetyController(
+                write_allowlist=frozenset({"Motor.Speed"}),
+                safe_state_outputs=(("Motor.Speed", 0),),
+                rate_limiter=None,
+            )
 
-        safety = SafetyController(
-            write_allowlist=frozenset({"Motor.Speed"}),
-            safe_state_outputs=(("Motor.Speed", 0),),
-            rate_limiter=None,
-        )
+            sm = ServiceManager(
+                tag_manager=mock_tag_manager_for_estop,
+                services=service_configs,
+                persistence=repo,
+                safety=safety,
+            )
 
-        sm = ServiceManager(
-            tag_manager=mock_tag_manager_for_estop,
-            services=service_configs,
-            persistence=repo,
-            safety=safety,
-        )
+            await sm.emergency_stop()
 
-        await sm.emergency_stop()
+            # Allow background tasks to complete
+            await asyncio.sleep(0.1)
 
-        # Allow background tasks to complete
-        await asyncio.sleep(0.1)
+            # Check audit log for emergency stop event
+            now = datetime.now(UTC)
+            logs = await repo.get_audit_log(
+                start=now - timedelta(seconds=10),
+                end=now + timedelta(seconds=10),
+            )
 
-        # Check audit log for emergency stop event
-        now = datetime.now(UTC)
-        logs = await repo.get_audit_log(
-            start=now - timedelta(seconds=10),
-            end=now + timedelta(seconds=10),
-        )
-
-        emergency_logs = [log for log in logs if log.command_type == "EMERGENCY_STOP"]
-        assert len(emergency_logs) >= 1
+            emergency_logs = [log for log in logs if log.command_type == "EMERGENCY_STOP"]
+            assert len(emergency_logs) >= 1
+        finally:
+            await repo.close()
 
 
 # =============================================================================

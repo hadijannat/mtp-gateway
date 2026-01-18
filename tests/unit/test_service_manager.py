@@ -485,22 +485,25 @@ class TestServiceManagerPersistence:
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
 
-        sm = ServiceManager(
-            tag_manager=mock_tag_manager,
-            services=[thick_service_config],
-            persistence=repo,
-        )
+        try:
+            sm = ServiceManager(
+                tag_manager=mock_tag_manager,
+                services=[thick_service_config],
+                persistence=repo,
+            )
 
-        await sm.send_command("ThickService", PackMLCommand.START)
+            await sm.send_command("ThickService", PackMLCommand.START)
 
-        # Allow background persistence tasks to complete
-        await asyncio.sleep(0.1)
+            # Allow background persistence tasks to complete
+            await asyncio.sleep(0.1)
 
-        # Check state was persisted
-        snapshot = await repo.get_service_state("ThickService")
-        assert snapshot is not None
-        # State should be one of the transition states
-        assert snapshot.state in ("STARTING", "EXECUTE")
+            # Check state was persisted
+            snapshot = await repo.get_service_state("ThickService")
+            assert snapshot is not None
+            # State should be one of the transition states
+            assert snapshot.state in ("STARTING", "EXECUTE")
+        finally:
+            await repo.close()
 
     @pytest.mark.asyncio
     async def test_persistence_is_optional(
@@ -524,25 +527,28 @@ class TestServiceManagerPersistence:
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
 
-        # Pre-populate persistence with a state
-        await repo.save_service_state(
-            service_name="ThickService",
-            state=PackMLState.EXECUTE,
-            procedure_id=1,
-            parameters={"test": "value"},
-        )
+        try:
+            # Pre-populate persistence with a state
+            await repo.save_service_state(
+                service_name="ThickService",
+                state=PackMLState.EXECUTE,
+                procedure_id=1,
+                parameters={"test": "value"},
+            )
 
-        # Create ServiceManager and recover
-        sm = ServiceManager(
-            tag_manager=mock_tag_manager,
-            services=[thick_service_config],
-            persistence=repo,
-        )
-        await sm.recover_services()
+            # Create ServiceManager and recover
+            sm = ServiceManager(
+                tag_manager=mock_tag_manager,
+                services=[thick_service_config],
+                persistence=repo,
+            )
+            await sm.recover_services()
 
-        # Check state was restored
-        state = sm.get_service_state("ThickService")
-        assert state == PackMLState.EXECUTE
+            # Check state was restored
+            state = sm.get_service_state("ThickService")
+            assert state == PackMLState.EXECUTE
+        finally:
+            await repo.close()
 
     @pytest.mark.asyncio
     async def test_recover_services_clears_after_recovery(
@@ -552,24 +558,27 @@ class TestServiceManagerPersistence:
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
 
-        # Pre-populate persistence
-        await repo.save_service_state(
-            service_name="ThickService",
-            state=PackMLState.EXECUTE,
-            procedure_id=1,
-            parameters={},
-        )
+        try:
+            # Pre-populate persistence
+            await repo.save_service_state(
+                service_name="ThickService",
+                state=PackMLState.EXECUTE,
+                procedure_id=1,
+                parameters={},
+            )
 
-        sm = ServiceManager(
-            tag_manager=mock_tag_manager,
-            services=[thick_service_config],
-            persistence=repo,
-        )
-        await sm.recover_services()
+            sm = ServiceManager(
+                tag_manager=mock_tag_manager,
+                services=[thick_service_config],
+                persistence=repo,
+            )
+            await sm.recover_services()
 
-        # Check persisted state was cleared (service running, no need to keep snapshot)
-        snapshot = await repo.get_service_state("ThickService")
-        assert snapshot is None
+            # Check persisted state was cleared (service running, no need to keep snapshot)
+            snapshot = await repo.get_service_state("ThickService")
+            assert snapshot is None
+        finally:
+            await repo.close()
 
     @pytest.mark.asyncio
     async def test_recover_services_no_persistence_is_noop(

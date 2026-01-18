@@ -230,14 +230,16 @@ class TestTagManagerPersistence:
         """TagManager should accept optional persistence parameter."""
         repo = PersistenceRepository(db_path=":memory:")
         await repo.initialize()
-
-        # Should not raise
-        tm = TagManager(
-            connectors={},
-            tags=[],
-            persistence=repo,
-        )
-        assert tm is not None
+        try:
+            # Should not raise
+            tm = TagManager(
+                connectors={},
+                tags=[],
+                persistence=repo,
+            )
+            assert tm is not None
+        finally:
+            await repo.close()
 
     @pytest.mark.asyncio
     async def test_tag_manager_works_without_persistence(self) -> None:
