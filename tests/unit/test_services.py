@@ -12,14 +12,18 @@ from mtp_gateway.config.schema import (
     ComparisonOp,
     CompletionConfig,
     ConditionConfig,
+    PackMLStateName,
     ProcedureConfig,
     ProxyMode,
     ServiceConfig,
     ServiceParameterConfig,
     StateHooksConfig,
+    StateTimeoutsConfig,
+    TimeoutAction,
     WriteAction,
 )
 from mtp_gateway.domain.model.services import (
+    ActingStateCondition,
     CompletionCondition,
     CompletionSpec,
     ProcedureDefinition,
@@ -27,6 +31,7 @@ from mtp_gateway.domain.model.services import (
     ServiceDefinition,
     ServiceRuntimeState,
     StateHooks,
+    StateTimeoutSpec,
 )
 from mtp_gateway.domain.model.tags import Quality
 from mtp_gateway.domain.state_machine.packml import PackMLState, PackMLStateMachine
@@ -209,6 +214,35 @@ class TestStateHooks:
         assert len(hooks.on_starting) == 1
         assert hooks.on_starting[0].tag == "Start"
 
+
+def test_service_definition_includes_timeouts_and_conditions() -> None:
+    """ServiceDefinition should include timeouts and acting conditions."""
+    config = ServiceConfig(
+        name="ServiceWithTimeouts",
+        mode=ProxyMode.THICK,
+        state_hooks=StateHooksConfig(),
+        timeouts=StateTimeoutsConfig(
+            auto_complete_acting_states=False,
+            timeouts={PackMLStateName.STARTING: 5.0},
+        ),
+        acting_state_conditions={
+            PackMLStateName.STARTING: ConditionConfig(
+                tag="ready",
+                op=ComparisonOp.EQ,
+                ref=True,
+            )
+        },
+    )
+
+    definition = ServiceDefinition.from_config(config)
+    assert isinstance(definition.timeouts, StateTimeoutSpec)
+    assert definition.timeouts.auto_complete_acting_states is False
+    assert definition.timeouts.timeouts[PackMLState.STARTING] == 5.0
+    assert any(
+        isinstance(cond, ActingStateCondition) and cond.state == PackMLState.STARTING
+        for cond in definition.acting_state_conditions
+    )
+
     def test_get_hooks_for_starting(self) -> None:
         """get_hooks_for_state(STARTING) should return on_starting hooks."""
         hooks = StateHooks(
@@ -356,6 +390,12 @@ class TestServiceDefinition:
                 on_resetting=(),
             ),
             completion=CompletionSpec(self_completing=True, condition=None, timeout_s=None),
+            timeouts=StateTimeoutSpec(
+                auto_complete_acting_states=True,
+                timeouts={},
+                on_timeout=TimeoutAction.ABORT,
+            ),
+            acting_state_conditions=(),
             state_cur_tag=None,
             command_op_tag=None,
         )
@@ -420,6 +460,12 @@ class TestServiceDefinition:
                 on_resetting=(),
             ),
             completion=CompletionSpec(self_completing=True, condition=None, timeout_s=None),
+            timeouts=StateTimeoutSpec(
+                auto_complete_acting_states=True,
+                timeouts={},
+                on_timeout=TimeoutAction.ABORT,
+            ),
+            acting_state_conditions=(),
             state_cur_tag=None,
             command_op_tag=None,
         )
@@ -453,6 +499,12 @@ class TestServiceRuntimeState:
                 on_resetting=(),
             ),
             completion=CompletionSpec(self_completing=True, condition=None, timeout_s=None),
+            timeouts=StateTimeoutSpec(
+                auto_complete_acting_states=True,
+                timeouts={},
+                on_timeout=TimeoutAction.ABORT,
+            ),
+            acting_state_conditions=(),
             state_cur_tag=None,
             command_op_tag=None,
         )

@@ -50,6 +50,7 @@ dev = [
     "pytest-timeout>=2.2.0",
     "jsonschema<4.18",
     "bandit>=1.7.6",
+    "pip-audit>=2.7.0",
     "ruff>=0.1.0",
     "mypy>=1.7.0",
     "pre-commit>=3.5.0",
@@ -195,7 +196,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "@abstractmethod",
 ]
-fail_under = 53
+fail_under = 60
 show_missing = true
 
 # Bandit security configuration

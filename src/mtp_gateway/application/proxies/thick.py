@@ -115,7 +115,12 @@ class ThickProxy(ServiceProxy):
         result = await self._state_machine.send_command(command)
 
         # Auto-complete acting states (hooks already executed via callbacks)
-        if result.success and result.to_state and self._is_acting_state(result.to_state):
+        if (
+            result.success
+            and result.to_state
+            and self._is_acting_state(result.to_state)
+            and self._should_auto_complete(result.to_state)
+        ):
             await self._auto_complete_acting_state()
 
         return ProxyResult(
@@ -148,6 +153,19 @@ class ThickProxy(ServiceProxy):
             PackMLState.RESETTING,
         }
         return state in acting_states
+
+    def _should_auto_complete(self, state: PackMLState) -> bool:
+        """Determine whether acting state should auto-complete."""
+        if not self._config.timeouts.auto_complete_acting_states:
+            return False
+        for condition_state in self._config.acting_state_conditions:
+            if PackMLState[condition_state.value] == state:
+                return False
+        return True
+
+    async def complete_acting_state(self) -> None:
+        """Advance from an acting state to its target state."""
+        await self._state_machine.complete_acting_state()
 
     async def get_state(self) -> PackMLState:
         """Get current state from local state machine.

@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import signal
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import structlog
 
 from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-from mtp_gateway.adapters.southbound.base import ConnectorPort, create_connector
+from mtp_gateway.adapters.southbound.base import ConnectorPort, ConnectorState, create_connector
 from mtp_gateway.application.service_manager import ServiceManager
 from mtp_gateway.application.tag_manager import TagManager
 from mtp_gateway.config.loader import load_config
+from mtp_gateway.config.schema import CommLossAction
 from mtp_gateway.domain.rules.interlocks import (
     ComparisonOperator,
     InterlockBinding,
@@ -46,6 +48,8 @@ class GatewayRuntime:
         self._tag_manager: TagManager | None = None
         self._service_manager: ServiceManager | None = None
         self._opcua_server: MTPOPCUAServer | None = None
+        self._comm_monitor_task: asyncio.Task[None] | None = None
+        self._comm_loss_triggered: set[str] = set()
 
     async def start(self) -> None:
         """Start the gateway runtime."""
@@ -60,6 +64,7 @@ class GatewayRuntime:
         await self._init_tag_manager()
         await self._init_service_manager()
         await self._init_opcua_server()
+        self._comm_monitor_task = asyncio.create_task(self._comm_monitor_loop())
 
         logger.info("MTP Gateway started successfully")
 
@@ -142,6 +147,11 @@ class GatewayRuntime:
         """Stop the gateway runtime gracefully."""
         logger.info("Stopping MTP Gateway")
 
+        if self._comm_monitor_task:
+            self._comm_monitor_task.cancel()
+            await asyncio.gather(self._comm_monitor_task, return_exceptions=True)
+            self._comm_monitor_task = None
+
         # Stop in reverse order
         if self._opcua_server:
             await self._opcua_server.stop()
@@ -165,6 +175,59 @@ class GatewayRuntime:
     def request_shutdown(self) -> None:
         """Request graceful shutdown."""
         self._shutdown_event.set()
+
+    async def _comm_monitor_loop(self) -> None:
+        """Monitor connector health and trigger configured comm-loss actions."""
+        grace_s = self.config.runtime.comm_loss_grace_s
+        action = self.config.runtime.comm_loss_action
+
+        while not self._shutdown_event.is_set():
+            try:
+                now = datetime.now(UTC)
+                for name, connector in self._connectors.items():
+                    health = connector.health_status()
+                    last_success = health.last_success
+                    last_error = health.last_error
+
+                    unhealthy = (
+                        health.state != ConnectorState.CONNECTED or health.consecutive_errors > 0
+                    )
+                    elapsed = None
+                    if last_success:
+                        elapsed = (now - last_success).total_seconds()
+                    elif last_error:
+                        elapsed = (now - last_error).total_seconds()
+
+                    should_trigger = unhealthy and (elapsed is None or elapsed >= grace_s)
+                    if should_trigger and name not in self._comm_loss_triggered:
+                        await self._handle_comm_loss(name, action)
+                        self._comm_loss_triggered.add(name)
+                    elif not unhealthy and name in self._comm_loss_triggered:
+                        self._comm_loss_triggered.discard(name)
+                await asyncio.sleep(1.0)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning("Comm monitor error", error=str(e))
+                await asyncio.sleep(1.0)
+
+    async def _handle_comm_loss(self, connector_name: str, action: CommLossAction) -> None:
+        """Handle communication loss based on configured action."""
+        logger.error(
+            "Connector communication loss detected",
+            connector=connector_name,
+            action=action.value,
+        )
+        if action == CommLossAction.SAFE_STATE:
+            if self._tag_manager is None:
+                return
+            safety = SafetyController.from_config(self.config.safety)
+            for tag_name, value in safety.get_safe_state_values().items():
+                await self._tag_manager.write_tag(tag_name, value)
+        elif action == CommLossAction.ABORT_SERVICES:
+            if self._service_manager is None:
+                return
+            await self._service_manager.emergency_stop()
 
 
 async def run_gateway(config_path: Path, override_path: Path | None = None) -> None:

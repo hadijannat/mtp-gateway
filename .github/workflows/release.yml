@@ -47,6 +47,12 @@ jobs:
       - name: Run security scan
         run: bandit -r src/mtp_gateway
 
+      - name: Run dependency vulnerability scan
+        run: pip-audit
+
+      - name: Verify external MTP validation report
+        run: ./scripts/ci/check_mtp_validator.sh
+
       - name: Run tests
         run: pytest tests/ -v -p no:schemathesis --tb=short
 

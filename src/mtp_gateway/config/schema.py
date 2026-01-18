@@ -50,6 +50,46 @@ class ProxyMode(str, Enum):
     HYBRID = "hybrid"  # Split state machine
 
 
+class PackMLStateName(str, Enum):
+    """PackML state names for configuration."""
+
+    UNDEFINED = "UNDEFINED"
+    IDLE = "IDLE"
+    STARTING = "STARTING"
+    EXECUTE = "EXECUTE"
+    COMPLETING = "COMPLETING"
+    COMPLETED = "COMPLETED"
+    HOLDING = "HOLDING"
+    HELD = "HELD"
+    UNHOLDING = "UNHOLDING"
+    STOPPING = "STOPPING"
+    STOPPED = "STOPPED"
+    ABORTING = "ABORTING"
+    ABORTED = "ABORTED"
+    CLEARING = "CLEARING"
+    SUSPENDING = "SUSPENDING"
+    SUSPENDED = "SUSPENDED"
+    UNSUSPENDING = "UNSUSPENDING"
+    RESETTING = "RESETTING"
+
+
+class TimeoutAction(str, Enum):
+    """Action to take when a transition times out."""
+
+    NONE = "none"
+    ABORT = "abort"
+    STOP = "stop"
+    HOLD = "hold"
+
+
+class CommLossAction(str, Enum):
+    """Action to take when communication loss is detected."""
+
+    NONE = "none"
+    SAFE_STATE = "safe_state"
+    ABORT_SERVICES = "abort_services"
+
+
 class SecurityPolicy(str, Enum):
     """OPC UA security policies."""
 
@@ -102,6 +142,22 @@ class GatewayInfo(BaseModel):
     description: str = Field(default="", max_length=500)
     vendor: str = Field(default="", max_length=128, description="Vendor or organization name")
     vendor_url: str = Field(default="", max_length=256, description="Vendor website URL")
+
+
+class RuntimePolicyConfig(BaseModel):
+    """Runtime policies for failure handling and recovery."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    comm_loss_action: CommLossAction = Field(
+        default=CommLossAction.NONE,
+        description="Action to take when connector communication is lost",
+    )
+    comm_loss_grace_s: float = Field(
+        default=5.0,
+        ge=0.0,
+        description="Seconds of tolerated comm loss before action triggers",
+    )
 
 
 class OPCUASecurityConfig(BaseModel):
@@ -416,6 +472,25 @@ class CompletionConfig(BaseModel):
     )
 
 
+class StateTimeoutsConfig(BaseModel):
+    """Timeouts and actions for service state execution."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    auto_complete_acting_states: bool = Field(
+        default=True,
+        description="Auto-complete acting states when no conditions are configured",
+    )
+    timeouts: dict[PackMLStateName, float] = Field(
+        default_factory=dict,
+        description="Timeouts per PackML state in seconds",
+    )
+    on_timeout: TimeoutAction = Field(
+        default=TimeoutAction.ABORT,
+        description="Action to take when a timeout expires",
+    )
+
+
 class ServiceParameterConfig(BaseModel):
     """Service procedure parameter configuration."""
 
@@ -458,6 +533,11 @@ class ServiceConfig(BaseModel):
     )
     state_hooks: StateHooksConfig = Field(default_factory=StateHooksConfig)
     completion: CompletionConfig = Field(default_factory=CompletionConfig)
+    timeouts: StateTimeoutsConfig = Field(default_factory=StateTimeoutsConfig)
+    acting_state_conditions: dict[PackMLStateName, ConditionConfig] = Field(
+        default_factory=dict,
+        description="Conditions that advance acting states (STARTING, COMPLETING, etc.)",
+    )
 
     # State tag bindings for thin proxy mode
     state_cur_tag: str | None = Field(default=None, description="Current state tag")
@@ -516,8 +596,13 @@ class GatewayConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    schema_version: str = Field(
+        default="1.0.0",
+        description="Configuration schema version",
+    )
     gateway: GatewayInfo
     opcua: OPCUAConfig = Field(default_factory=OPCUAConfig)
+    runtime: RuntimePolicyConfig = Field(default_factory=RuntimePolicyConfig)
     connectors: list[ConnectorConfig] = Field(default_factory=list)
     tags: list[TagConfig] = Field(default_factory=list)
     mtp: MTPConfig = Field(default_factory=MTPConfig)
@@ -526,17 +611,29 @@ class GatewayConfig(BaseModel):
     @model_validator(mode="after")
     def validate_references(self) -> GatewayConfig:
         """Validate that all references are valid."""
-        # Build lookup sets
-        connector_names = {c.name for c in self.connectors}
-        tag_names = {t.name for t in self.tags}
-        da_names = {da.name for da in self.mtp.data_assemblies}
+        connector_names, tag_names, da_names = self._reference_sets()
+        self._validate_tag_connectors(connector_names)
+        self._validate_data_assembly_bindings(tag_names)
+        self._validate_service_references(tag_names, da_names)
+        self._validate_write_allowlist(tag_names)
+        self._validate_safe_state_outputs()
+        return self
 
-        # Validate tag connector references
+    def _reference_sets(self) -> tuple[set[str], set[str], set[str]]:
+        """Build lookup sets for cross-reference validation."""
+        connector_names = {connector.name for connector in self.connectors}
+        tag_names = {tag.name for tag in self.tags}
+        da_names = {da.name for da in self.mtp.data_assemblies}
+        return connector_names, tag_names, da_names
+
+    def _validate_tag_connectors(self, connector_names: set[str]) -> None:
+        """Validate that tags reference known connectors."""
         for tag in self.tags:
             if tag.connector not in connector_names:
                 raise ValueError(f"Tag '{tag.name}' references unknown connector '{tag.connector}'")
 
-        # Validate data assembly bindings
+    def _validate_data_assembly_bindings(self, tag_names: set[str]) -> None:
+        """Validate that data assembly bindings reference known tags."""
         for da in self.mtp.data_assemblies:
             for binding_name, tag_ref in da.bindings.items():
                 if tag_ref not in tag_names:
@@ -545,7 +642,8 @@ class GatewayConfig(BaseModel):
                         f"references unknown tag '{tag_ref}'"
                     )
 
-        # Validate service parameter references
+    def _validate_service_references(self, tag_names: set[str], da_names: set[str]) -> None:
+        """Validate service parameter and condition references."""
         for service in self.mtp.services:
             for param in service.parameters:
                 if param.data_assembly not in da_names:
@@ -553,10 +651,28 @@ class GatewayConfig(BaseModel):
                         f"Service '{service.name}' parameter '{param.name}' "
                         f"references unknown data assembly '{param.data_assembly}'"
                     )
+            if service.completion.condition and service.completion.condition.tag not in tag_names:
+                raise ValueError(
+                    f"Service '{service.name}' completion condition "
+                    f"references unknown tag '{service.completion.condition.tag}'"
+                )
+            for condition in service.acting_state_conditions.values():
+                if condition.tag not in tag_names:
+                    raise ValueError(
+                        f"Service '{service.name}' acting state condition "
+                        f"references unknown tag '{condition.tag}'"
+                    )
 
-        # Validate write allowlist
+    def _validate_write_allowlist(self, tag_names: set[str]) -> None:
+        """Validate write allowlist references."""
         for tag_name in self.safety.write_allowlist:
             if tag_name not in tag_names:
                 raise ValueError(f"Write allowlist references unknown tag '{tag_name}'")
 
-        return self
+    def _validate_safe_state_outputs(self) -> None:
+        """Ensure safe state outputs are explicitly allowlisted."""
+        for output in self.safety.safe_state_outputs:
+            if output.tag not in self.safety.write_allowlist:
+                raise ValueError(
+                    f"Safe state output '{output.tag}' must be included in write allowlist"
+                )

@@ -49,6 +49,9 @@ jobs:
       - name: Run Bandit security scan
         run: bandit -c pyproject.toml -r src/
 
+      - name: Run dependency vulnerability scan
+        run: pip-audit
+
       - name: Minimize uv cache
         run: uv cache prune --ci
 

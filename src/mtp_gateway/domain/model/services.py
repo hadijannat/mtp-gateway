@@ -19,6 +19,8 @@ from mtp_gateway.config.schema import (
     ProxyMode,
     ServiceConfig,
     StateHooksConfig,
+    StateTimeoutsConfig,
+    TimeoutAction,
     WriteAction,
 )
 from mtp_gateway.domain.state_machine.packml import PackMLState, PackMLStateMachine
@@ -254,6 +256,36 @@ class CompletionSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class StateTimeoutSpec:
+    """Timeout configuration for service states."""
+
+    auto_complete_acting_states: bool
+    timeouts: dict[PackMLState, float]
+    on_timeout: TimeoutAction
+
+    @classmethod
+    def from_config(cls, config: StateTimeoutsConfig) -> StateTimeoutSpec:
+        """Create StateTimeoutSpec from configuration."""
+        timeouts = {
+            PackMLState[state_name.value]: timeout
+            for state_name, timeout in config.timeouts.items()
+        }
+        return cls(
+            auto_complete_acting_states=config.auto_complete_acting_states,
+            timeouts=timeouts,
+            on_timeout=config.on_timeout,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ActingStateCondition:
+    """Condition to advance an acting state."""
+
+    state: PackMLState
+    condition: CompletionCondition
+
+
+@dataclass(frozen=True, slots=True)
 class ServiceDefinition:
     """Definition of an MTP service.
 
@@ -277,6 +309,8 @@ class ServiceDefinition:
     parameters: tuple[ProcedureParameter, ...]
     state_hooks: StateHooks
     completion: CompletionSpec
+    timeouts: StateTimeoutSpec
+    acting_state_conditions: tuple[ActingStateCondition, ...]
     state_cur_tag: str | None
     command_op_tag: str | None
 
@@ -300,6 +334,17 @@ class ServiceDefinition:
             )
             for p in config.parameters
         )
+        acting_conditions = tuple(
+            ActingStateCondition(
+                state=PackMLState[state_name.value],
+                condition=CompletionCondition(
+                    tag=condition.tag,
+                    operator=condition.op,
+                    reference=condition.ref,
+                ),
+            )
+            for state_name, condition in config.acting_state_conditions.items()
+        )
 
         return cls(
             name=config.name,
@@ -308,6 +353,8 @@ class ServiceDefinition:
             parameters=parameters,
             state_hooks=StateHooks.from_config(config.state_hooks),
             completion=CompletionSpec.from_config(config.completion),
+            timeouts=StateTimeoutSpec.from_config(config.timeouts),
+            acting_state_conditions=acting_conditions,
             state_cur_tag=config.state_cur_tag,
             command_op_tag=config.command_op_tag,
         )

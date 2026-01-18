@@ -201,6 +201,14 @@ class TagManager:
 
         while self._running:
             try:
+                health = connector.health_status()
+                health_state = getattr(health, "state", None)
+                is_connected = getattr(health_state, "value", None) == "connected"
+                if not is_connected or getattr(health, "consecutive_errors", 0) > 0:
+                    reconnect = getattr(connector, "reconnect", None)
+                    if callable(reconnect):
+                        await reconnect()
+
                 # Read all tags for this connector
                 read_tag_values = getattr(connector, "read_tag_values", None)
                 if read_tag_values and inspect.iscoroutinefunction(read_tag_values):

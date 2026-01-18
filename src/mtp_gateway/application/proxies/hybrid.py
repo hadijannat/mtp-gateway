@@ -123,3 +123,7 @@ class HybridProxy(ServiceProxy):
     def state_machine(self) -> PackMLStateMachine:
         """Access the local state machine (for testing/debugging)."""
         return self._state_machine
+
+    async def complete_acting_state(self) -> None:
+        """Advance from an acting state in the local state machine."""
+        await self._state_machine.complete_acting_state()

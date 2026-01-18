@@ -19,11 +19,15 @@ from mtp_gateway.application.proxies import (
     create_proxy,
 )
 from mtp_gateway.config.schema import (
+    ComparisonOp,
     CompletionConfig,
+    ConditionConfig,
+    PackMLStateName,
     ProcedureConfig,
     ProxyMode,
     ServiceConfig,
     StateHooksConfig,
+    StateTimeoutsConfig,
     WriteAction,
 )
 from mtp_gateway.domain.model.tags import TagValue
@@ -197,6 +201,31 @@ class TestThickProxy:
         # Acting state should auto-complete
         # (behavior depends on implementation details)
         assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_acting_state_waits_for_condition(self, mock_tag_manager: MagicMock) -> None:
+        """ThickProxy should not auto-complete when a condition is configured."""
+        config = ServiceConfig(
+            name="ConditionalService",
+            mode=ProxyMode.THICK,
+            state_hooks=StateHooksConfig(
+                on_starting=[WriteAction(tag="PLC.Start", value=True)],
+            ),
+            timeouts=StateTimeoutsConfig(auto_complete_acting_states=True),
+            acting_state_conditions={
+                PackMLStateName.STARTING: ConditionConfig(
+                    tag="ready",
+                    op=ComparisonOp.EQ,
+                    ref=True,
+                )
+            },
+        )
+        proxy = ThickProxy(config=config, tag_manager=mock_tag_manager)
+
+        await proxy.send_command(PackMLCommand.START)
+
+        state = await proxy.get_state()
+        assert state == PackMLState.STARTING
 
 
 class TestThinProxy:

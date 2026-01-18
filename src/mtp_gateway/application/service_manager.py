@@ -15,7 +15,7 @@ import structlog
 
 from mtp_gateway.application.audit import AuditTrail
 from mtp_gateway.application.proxies import ServiceProxy, create_proxy
-from mtp_gateway.config.schema import ProxyMode, ServiceConfig
+from mtp_gateway.config.schema import ProxyMode, ServiceConfig, TimeoutAction
 from mtp_gateway.domain.model.services import ServiceDefinition
 from mtp_gateway.domain.model.tags import Quality
 from mtp_gateway.domain.rules.interlocks import InterlockResult
@@ -75,6 +75,8 @@ class ServiceManager:
         self._subscribers: list[StateChangeCallback] = []
         self._completion_tasks: dict[str, asyncio.Task[None]] = {}
         self._sync_tasks: dict[str, asyncio.Task[None]] = {}
+        self._state_monitor_tasks: dict[str, asyncio.Task[None]] = {}
+        self._state_entry_times: dict[str, datetime] = {}
         self._background_tasks: set[asyncio.Task[object]] = set()
         self._running = False
 
@@ -100,6 +102,9 @@ class ServiceManager:
             if defn.mode in (ProxyMode.THIN, ProxyMode.HYBRID):
                 task = asyncio.create_task(self._plc_sync_loop(name), name=f"sync_{name}")
                 self._sync_tasks[name] = task
+            if defn.mode in (ProxyMode.THICK, ProxyMode.HYBRID):
+                task = asyncio.create_task(self._state_monitor_loop(name), name=f"monitor_{name}")
+                self._state_monitor_tasks[name] = task
 
     async def stop(self) -> None:
         """Stop the service manager, cancelling all background tasks."""
@@ -114,6 +119,12 @@ class ServiceManager:
             if task_dict:
                 await asyncio.gather(*task_dict.values(), return_exceptions=True)
             task_dict.clear()
+
+        if self._state_monitor_tasks:
+            for t in self._state_monitor_tasks.values():
+                t.cancel()
+            await asyncio.gather(*self._state_monitor_tasks.values(), return_exceptions=True)
+            self._state_monitor_tasks.clear()
 
         for bg_task in self._background_tasks:
             bg_task.cancel()
@@ -250,6 +261,95 @@ class ServiceManager:
             self._completion_loop(service_name), name=f"completion_{service_name}"
         )
         self._completion_tasks[service_name] = task
+
+    async def _state_monitor_loop(self, service_name: str) -> None:
+        """Monitor acting states for completion conditions and timeouts."""
+        defn = self._definitions[service_name]
+        proxy = self._proxies[service_name]
+        last_state = await proxy.get_state()
+        self._state_entry_times[service_name] = datetime.now(UTC)
+
+        while self._running:
+            try:
+                state = await proxy.get_state()
+                if state != last_state:
+                    last_state = state
+                    self._state_entry_times[service_name] = datetime.now(UTC)
+
+                # Advance acting states when a condition is met
+                for condition in defn.acting_state_conditions:
+                    if condition.state == state:
+                        tag_value = self._tag_manager.get_value(condition.condition.tag)
+                        if tag_value and condition.condition.evaluate(tag_value.value):
+                            await self._advance_acting_state(proxy)
+                            break
+
+                # Auto-complete acting states if configured and no condition exists
+                if defn.timeouts.auto_complete_acting_states and state in self._acting_states():
+                    has_condition = any(
+                        cond.state == state for cond in defn.acting_state_conditions
+                    )
+                    if not has_condition:
+                        await self._advance_acting_state(proxy)
+
+                # Enforce timeouts for any configured state
+                timeout_s = defn.timeouts.timeouts.get(state)
+                if timeout_s:
+                    entry_time = self._state_entry_times.get(service_name)
+                    if entry_time and (datetime.now(UTC) - entry_time).total_seconds() >= timeout_s:
+                        await self._handle_timeout(service_name, state, defn.timeouts.on_timeout)
+
+                await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning(
+                    "State monitor error",
+                    service=service_name,
+                    error=str(e),
+                )
+                await asyncio.sleep(0.2)
+
+    async def _advance_acting_state(self, proxy: ServiceProxy) -> None:
+        """Advance an acting state if the proxy supports it."""
+        complete_fn = getattr(proxy, "complete_acting_state", None)
+        if callable(complete_fn):
+            await complete_fn()
+
+    def _acting_states(self) -> set[PackMLState]:
+        """Return the set of acting PackML states."""
+        return {
+            PackMLState.STARTING,
+            PackMLState.COMPLETING,
+            PackMLState.HOLDING,
+            PackMLState.UNHOLDING,
+            PackMLState.STOPPING,
+            PackMLState.ABORTING,
+            PackMLState.CLEARING,
+            PackMLState.SUSPENDING,
+            PackMLState.UNSUSPENDING,
+            PackMLState.RESETTING,
+        }
+
+    async def _handle_timeout(
+        self,
+        service_name: str,
+        state: PackMLState,
+        action: TimeoutAction,
+    ) -> None:
+        """Handle a timeout according to configured policy."""
+        logger.warning(
+            "Service state timeout",
+            service=service_name,
+            state=state.name,
+            action=action.value,
+        )
+        if action == TimeoutAction.ABORT:
+            await self.send_command(service_name, PackMLCommand.ABORT, source="timeout_monitor")
+        elif action == TimeoutAction.STOP:
+            await self.send_command(service_name, PackMLCommand.STOP, source="timeout_monitor")
+        elif action == TimeoutAction.HOLD:
+            await self.send_command(service_name, PackMLCommand.HOLD, source="timeout_monitor")
 
     async def _completion_loop(self, service_name: str) -> None:
         """Monitor for service completion via timeout, condition, or self-completing flag."""
