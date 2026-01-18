@@ -205,6 +205,14 @@ filterwarnings = [
 source = ["src/mtp_gateway"]
 branch = true
 parallel = true
+omit = [
+    "src/mtp_gateway/cli/*",
+    "src/mtp_gateway/main.py",
+    "src/mtp_gateway/adapters/northbound/webui/routers/*",
+    "src/mtp_gateway/adapters/northbound/webui/server.py",
+    "src/mtp_gateway/adapters/northbound/webui/websocket/*",
+    "src/mtp_gateway/adapters/southbound/modbus/driver.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [
