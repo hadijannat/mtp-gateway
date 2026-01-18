@@ -1,0 +1,68 @@
+# Docker Compose for MTP Gateway development and testing
+# Usage: docker compose -f docker/docker-compose.yaml up
+
+services:
+  # ============================================================
+  # Modbus Simulator for development/testing
+  # ============================================================
+  modbus-sim:
+    image: oitc/modbus-server
+    ports:
+      - "5020:5020"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5020"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ============================================================
+  # MTP Gateway Service
+  # ============================================================
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "4840:4840"  # OPC UA Server
+      - "8080:8080"  # Health/Metrics (if enabled)
+    volumes:
+      - ./config:/config:ro
+      - ./certs:/certs:ro
+    environment:
+      MTP_LOG_LEVEL: DEBUG
+      MTP_LOG_FORMAT: console
+    depends_on:
+      modbus-sim:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(5); s.connect(('localhost', 4840)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+# ============================================================
+# Development-only services
+# ============================================================
+  # OPC UA Client for testing (UAExpert alternative)
+  opcua-client:
+    image: python:3.11-slim
+    profiles: ["dev"]
+    command: >
+      sh -c "pip install asyncua && python -c '
+      import asyncio
+      from asyncua import Client
+      async def main():
+          client = Client(\"opc.tcp://gateway:4840\")
+          await client.connect()
+          root = client.nodes.root
+          print(await root.get_children())
+          await client.disconnect()
+      asyncio.run(main())
+      '"
+    depends_on:
+      - gateway
+
+networks:
+  default:
+    name: mtp-gateway-network

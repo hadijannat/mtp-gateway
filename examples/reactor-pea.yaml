@@ -1,0 +1,262 @@
+# Example MTP Gateway Configuration for a Reactor Module
+# This demonstrates a typical setup for connecting a Modbus-based PLC
+# to a Process Orchestration Layer (POL) via MTP-compliant OPC UA.
+
+gateway:
+  name: Reactor_PEA_01
+  version: "1.0.0"
+  description: Example reactor module with temperature control and dosing
+
+# OPC UA Server Configuration
+opcua:
+  endpoint: opc.tcp://0.0.0.0:4840
+  namespace_uri: urn:example:reactor-pea
+  application_name: Reactor PEA Gateway
+  security:
+    allow_none: true  # Disable for production!
+    policies:
+      - Basic256Sha256_SignAndEncrypt
+    # cert_path: /certs/server_cert.pem
+    # key_path: /certs/server_key.pem
+
+# Southbound Connectors (PLC Communication)
+connectors:
+  - name: reactor_plc
+    type: modbus_tcp
+    host: ${PLC_HOST:-192.168.1.100}  # Can be set via environment variable
+    port: 502
+    unit_id: 1
+    poll_interval_ms: 500
+    timeout_ms: 3000
+    retry_count: 3
+    retry_delay_ms: 1000
+
+# Tag Definitions (PLC Data Points)
+tags:
+  # Temperature sensors
+  - name: reactor_temp
+    connector: reactor_plc
+    address: "40001"
+    datatype: float32
+    scale:
+      gain: 0.1
+      offset: 0
+    unit: degC
+    description: Reactor vessel temperature
+
+  - name: jacket_temp
+    connector: reactor_plc
+    address: "40003"
+    datatype: float32
+    scale:
+      gain: 0.1
+      offset: 0
+    unit: degC
+    description: Cooling jacket temperature
+
+  # Pressure sensors
+  - name: reactor_pressure
+    connector: reactor_plc
+    address: "40005"
+    datatype: float32
+    scale:
+      gain: 0.001
+      offset: 0
+    unit: bar
+    description: Reactor pressure
+
+  # Setpoints (writable)
+  - name: temp_setpoint
+    connector: reactor_plc
+    address: "40010"
+    datatype: float32
+    writable: true
+    scale:
+      gain: 0.1
+      offset: 0
+    unit: degC
+    description: Temperature setpoint
+
+  # Valves
+  - name: inlet_valve
+    connector: reactor_plc
+    address: "00001"
+    datatype: bool
+    writable: true
+    description: Inlet valve control
+
+  - name: outlet_valve
+    connector: reactor_plc
+    address: "00002"
+    datatype: bool
+    writable: true
+    description: Outlet valve control
+
+  - name: inlet_valve_fbk
+    connector: reactor_plc
+    address: "10001"
+    datatype: bool
+    description: Inlet valve feedback (open)
+
+  - name: outlet_valve_fbk
+    connector: reactor_plc
+    address: "10002"
+    datatype: bool
+    description: Outlet valve feedback (open)
+
+  # Dosing pump
+  - name: pump_speed
+    connector: reactor_plc
+    address: "40020"
+    datatype: float32
+    writable: true
+    unit: "%"
+    description: Dosing pump speed setpoint
+
+  - name: pump_running
+    connector: reactor_plc
+    address: "10010"
+    datatype: bool
+    description: Dosing pump running feedback
+
+  # Service state (for thin proxy)
+  - name: dosing_state
+    connector: reactor_plc
+    address: "40100"
+    datatype: uint16
+    description: Dosing service state
+
+  - name: dosing_cmd
+    connector: reactor_plc
+    address: "40101"
+    datatype: uint16
+    writable: true
+    description: Dosing service command
+
+# MTP Configuration
+mtp:
+  # Data Assemblies (VDI 2658-4)
+  data_assemblies:
+    # Temperature monitoring
+    - name: TempSensor_Reactor
+      type: AnaView
+      bindings:
+        V: reactor_temp
+      v_scl_min: 0.0
+      v_scl_max: 200.0
+      v_unit: 1001  # degC per UNECE Rec. 20
+      description: Reactor temperature sensor
+
+    - name: TempSensor_Jacket
+      type: AnaView
+      bindings:
+        V: jacket_temp
+      v_scl_min: 0.0
+      v_scl_max: 100.0
+      v_unit: 1001
+      description: Jacket temperature sensor
+
+    # Pressure monitoring
+    - name: PressureSensor_Reactor
+      type: AnaView
+      bindings:
+        V: reactor_pressure
+      v_scl_min: 0.0
+      v_scl_max: 10.0
+      v_unit: 12  # bar
+      description: Reactor pressure sensor
+
+    # Temperature setpoint
+    - name: TempSetpoint
+      type: AnaServParam
+      bindings:
+        V: temp_setpoint
+      v_scl_min: 20.0
+      v_scl_max: 150.0
+      v_unit: 1001
+      description: Temperature setpoint parameter
+
+    # Valve controls
+    - name: InletValve
+      type: BinVlv
+      bindings:
+        V: inlet_valve
+        VFbkOpen: inlet_valve_fbk
+      v_state_0: Closed
+      v_state_1: Open
+      description: Reactor inlet valve
+
+    - name: OutletValve
+      type: BinVlv
+      bindings:
+        V: outlet_valve
+        VFbkOpen: outlet_valve_fbk
+      v_state_0: Closed
+      v_state_1: Open
+      description: Reactor outlet valve
+
+    # Dosing pump
+    - name: DosingPump
+      type: AnaDrv
+      bindings:
+        V: pump_speed
+      v_scl_min: 0.0
+      v_scl_max: 100.0
+      v_unit: 23  # percent
+      description: Dosing pump speed control
+
+  # Services
+  services:
+    - name: Dosing
+      mode: thin_proxy  # State machine runs in PLC
+      state_cur_tag: dosing_state
+      command_op_tag: dosing_cmd
+      procedures:
+        - id: 1
+          name: DoseProduct
+          is_default: true
+        - id: 2
+          name: Rinse
+          is_default: false
+      parameters:
+        - name: DoseVolume
+          data_assembly: TempSetpoint  # Example reference
+          required: true
+      report_values:
+        - TempSensor_Reactor
+        - PressureSensor_Reactor
+      completion:
+        self_completing: false
+        timeout_s: 300
+
+    - name: TempControl
+      mode: thin_proxy
+      procedures:
+        - id: 1
+          name: HeatTo
+          is_default: true
+        - id: 2
+          name: CoolTo
+          is_default: false
+
+# Safety Configuration
+safety:
+  # Only these tags can be written via OPC UA
+  write_allowlist:
+    - temp_setpoint
+    - inlet_valve
+    - outlet_valve
+    - pump_speed
+    - dosing_cmd
+
+  # Emergency stop outputs
+  safe_state_outputs:
+    - tag: inlet_valve
+      value: false
+    - tag: outlet_valve
+      value: false
+    - tag: pump_speed
+      value: 0
+
+  # Rate limiting for commands
+  command_rate_limit: "10/s"
