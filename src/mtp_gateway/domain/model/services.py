@@ -290,9 +290,7 @@ class ServiceDefinition:
         Returns:
             Immutable ServiceDefinition domain model
         """
-        procedures = tuple(
-            ProcedureDefinition.from_config(p) for p in config.procedures
-        )
+        procedures = tuple(ProcedureDefinition.from_config(p) for p in config.procedures)
 
         parameters = tuple(
             ProcedureParameter(

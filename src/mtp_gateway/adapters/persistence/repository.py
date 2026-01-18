@@ -141,9 +141,7 @@ class PersistenceRepository:
                 state=state_str,
             )
 
-    async def get_service_state(
-        self, service_name: str
-    ) -> ServiceStateSnapshot | None:
+    async def get_service_state(self, service_name: str) -> ServiceStateSnapshot | None:
         """Get service state snapshot by name.
 
         Args:
@@ -275,9 +273,7 @@ class PersistenceRepository:
                 if record.timestamp and record.timestamp.tzinfo is None:
                     record.timestamp = record.timestamp.replace(tzinfo=UTC)
                 if record.source_timestamp and record.source_timestamp.tzinfo is None:
-                    record.source_timestamp = record.source_timestamp.replace(
-                        tzinfo=UTC
-                    )
+                    record.source_timestamp = record.source_timestamp.replace(tzinfo=UTC)
 
             return records
 

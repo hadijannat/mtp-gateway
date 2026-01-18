@@ -93,9 +93,7 @@ class InterlockEvaluator:
 
     bindings: dict[str, InterlockBinding]
 
-    def check_interlock(
-        self, element_name: str, tag_values: dict[str, Any]
-    ) -> InterlockResult:
+    def check_interlock(self, element_name: str, tag_values: dict[str, Any]) -> InterlockResult:
         """Check if element is interlocked based on bound tag values.
 
         Evaluates the interlock condition for the named element against
@@ -138,9 +136,7 @@ class InterlockEvaluator:
 
         return InterlockResult(interlocked=False)
 
-    def _evaluate_condition(
-        self, value: Any, op: ComparisonOperator, ref: Any
-    ) -> bool:
+    def _evaluate_condition(self, value: Any, op: ComparisonOperator, ref: Any) -> bool:
         """Evaluate a comparison condition.
 
         Args:

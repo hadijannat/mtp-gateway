@@ -198,9 +198,7 @@ class TestPackMLValidTransitions:
         assert result.to_state == PackMLState.UNHOLDING
 
     @pytest.mark.asyncio
-    async def test_suspended_unsuspend_goes_to_unsuspending(
-        self, sm: PackMLStateMachine
-    ) -> None:
+    async def test_suspended_unsuspend_goes_to_unsuspending(self, sm: PackMLStateMachine) -> None:
         """SUSPENDED + UNSUSPEND → UNSUSPENDING."""
         sm._state = PackMLState.SUSPENDED
         result = await sm.send_command(PackMLCommand.UNSUSPEND)
@@ -403,9 +401,7 @@ class TestPackMLActingStateAutoTransition:
         assert result.to_state == PackMLState.IDLE
 
     @pytest.mark.asyncio
-    async def test_complete_acting_fails_for_non_acting_state(
-        self, sm: PackMLStateMachine
-    ) -> None:
+    async def test_complete_acting_fails_for_non_acting_state(self, sm: PackMLStateMachine) -> None:
         """complete_acting_state() should fail for non-acting states."""
         non_acting_states = [
             PackMLState.IDLE,

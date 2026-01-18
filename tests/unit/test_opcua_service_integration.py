@@ -117,14 +117,14 @@ class TestOPCUACommandHandling:
         )
 
         # Verify the server has the command handling method
-        assert hasattr(server, '_handle_command_value')
+        assert hasattr(server, "_handle_command_value")
 
         # Test that a valid command value is processed
         server._running = True
         server._service_nodes = {"MixingService": {}}
 
         # Should not raise for valid command (START = 2)
-        with patch.object(service_manager, 'send_command', new=AsyncMock()) as mock_send:
+        with patch.object(service_manager, "send_command", new=AsyncMock()) as mock_send:
             await server._handle_command_value("MixingService", 2)
             mock_send.assert_called_once()
 
@@ -152,7 +152,7 @@ class TestOPCUACommandHandling:
         initial_state = service_manager.get_service_state("MixingService")
 
         # After handling invalid command value 0
-        if hasattr(server, '_handle_command_value'):
+        if hasattr(server, "_handle_command_value"):
             await server._handle_command_value("MixingService", 0)
             assert service_manager.get_service_state("MixingService") == initial_state
 
@@ -362,7 +362,7 @@ class TestOPCUAServerServiceManagerIntegration:
         server._server.set_security_policy = MagicMock()
 
         with patch(
-            'mtp_gateway.adapters.northbound.opcua.server.build_address_space',
+            "mtp_gateway.adapters.northbound.opcua.server.build_address_space",
             new=AsyncMock(return_value=({}, {}, {}, {}, {}, {})),
         ):
             await server.start()
@@ -403,7 +403,7 @@ class TestOPCUAServerServiceManagerIntegration:
         server._server.set_security_policy = MagicMock()
 
         with patch(
-            'mtp_gateway.adapters.northbound.opcua.server.build_address_space',
+            "mtp_gateway.adapters.northbound.opcua.server.build_address_space",
             new=AsyncMock(return_value=({}, {}, {}, {}, {}, {})),
         ):
             await server.start()

@@ -396,8 +396,10 @@ class TestS7ConnectorMocked:
 
     async def test_connect_success(self, s7_config: S7ConnectorConfig) -> None:
         """Successful connection sets state to CONNECTED."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -408,14 +410,14 @@ class TestS7ConnectorMocked:
 
             health = connector.health_status()
             assert health.state == ConnectorState.CONNECTED
-            mock_client.connect.assert_called_once_with(
-                "192.168.1.100", 0, 1, 102
-            )
+            mock_client.connect.assert_called_once_with("192.168.1.100", 0, 1, 102)
 
     async def test_connect_failure_sets_error(self, s7_config: S7ConnectorConfig) -> None:
         """Connection failure sets ERROR state."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.side_effect = Exception("Connection refused")
             mock_snap7.client.Client.return_value = mock_client
@@ -428,12 +430,12 @@ class TestS7ConnectorMocked:
             health = connector.health_status()
             assert health.state == ConnectorState.ERROR
 
-    async def test_read_tags_returns_tag_values(
-        self, s7_config: S7ConnectorConfig
-    ) -> None:
+    async def test_read_tags_returns_tag_values(self, s7_config: S7ConnectorConfig) -> None:
         """Reading tags returns dict of TagValue objects."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -453,8 +455,10 @@ class TestS7ConnectorMocked:
 
     async def test_read_multiple_tags(self, s7_config: S7ConnectorConfig) -> None:
         """Reading multiple tags returns all values."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -478,12 +482,12 @@ class TestS7ConnectorMocked:
             assert "DB100.DBD0" in result
             assert "DB100.DBD4" in result
 
-    async def test_read_failure_returns_bad_quality(
-        self, s7_config: S7ConnectorConfig
-    ) -> None:
+    async def test_read_failure_returns_bad_quality(self, s7_config: S7ConnectorConfig) -> None:
         """Read errors return bad quality (specific code depends on error handling)."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -502,8 +506,10 @@ class TestS7ConnectorMocked:
 
     async def test_read_memory_area(self, s7_config: S7ConnectorConfig) -> None:
         """Read from memory area (M)."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -521,8 +527,10 @@ class TestS7ConnectorMocked:
 
     async def test_read_input_area(self, s7_config: S7ConnectorConfig) -> None:
         """Read from input area (I)."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -540,8 +548,10 @@ class TestS7ConnectorMocked:
 
     async def test_write_tag_success(self, s7_config: S7ConnectorConfig) -> None:
         """Write returns True on success."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -558,8 +568,10 @@ class TestS7ConnectorMocked:
 
     async def test_write_tag_failure(self, s7_config: S7ConnectorConfig) -> None:
         """Write returns False on failure."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -575,8 +587,10 @@ class TestS7ConnectorMocked:
 
     async def test_write_to_memory_area(self, s7_config: S7ConnectorConfig) -> None:
         """Write to memory area."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -593,8 +607,10 @@ class TestS7ConnectorMocked:
 
     async def test_write_output_bit(self, s7_config: S7ConnectorConfig) -> None:
         """Write to output bit."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -610,8 +626,10 @@ class TestS7ConnectorMocked:
 
     async def test_disconnect_graceful(self, s7_config: S7ConnectorConfig) -> None:
         """Disconnect closes client cleanly."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7, \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7") as mock_snap7,
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             mock_client = MagicMock()
             mock_client.connect.return_value = None
             mock_client.get_connected.return_value = True
@@ -625,12 +643,12 @@ class TestS7ConnectorMocked:
             health = connector.health_status()
             assert health.state == ConnectorState.STOPPED
 
-    async def test_read_without_connect_fails(
-        self, s7_config: S7ConnectorConfig
-    ) -> None:
+    async def test_read_without_connect_fails(self, s7_config: S7ConnectorConfig) -> None:
         """Reading without connecting returns bad quality."""
-        with patch("mtp_gateway.adapters.southbound.s7.driver.snap7"), \
-             patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.s7.driver.snap7"),
+            patch("mtp_gateway.adapters.southbound.s7.driver.HAS_SNAP7", True),
+        ):
             connector = S7Connector(s7_config)
 
             result = await connector.read_tags(["DB100.DBD0"])

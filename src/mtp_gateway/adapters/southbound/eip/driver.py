@@ -173,8 +173,7 @@ class EIPConnector(BaseConnector):
         super().__init__(config)
         if not HAS_PYCOMM3 or LogixDriver is None:
             raise ImportError(
-                "pycomm3 library is required for EIP connector. "
-                "Install with: pip install pycomm3"
+                "pycomm3 library is required for EIP connector. Install with: pip install pycomm3"
             )
         self._driver: Any = None  # LogixDriver | None
         self._host = config.host

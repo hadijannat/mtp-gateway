@@ -208,15 +208,13 @@ class TagManager:
                 else:
                     values_by_addr = await connector.read_tags(group.addresses)
                     values_by_tag = {
-                        tag_def.name: values_by_addr.get(tag_def.address)
-                        for tag_def in group.tags
+                        tag_def.name: values_by_addr.get(tag_def.address) for tag_def in group.tags
                     }
 
                 # Update tag states
                 for tag_def in group.tags:
                     tag_value = values_by_tag.get(tag_def.name)
                     if tag_value is not None:
-
                         # Apply scaling if configured
                         if tag_def.scale and isinstance(tag_value.value, (int, float)):
                             scaled = tag_def.apply_scale(tag_value.value)
@@ -342,7 +340,6 @@ class TagManager:
             tag_value = values.get(tag_def.address)
 
         if tag_value is not None:
-
             # Apply scaling
             if tag_def.scale and isinstance(tag_value.value, (int, float)):
                 scaled = tag_def.apply_scale(tag_value.value)
@@ -437,9 +434,7 @@ class TagManager:
     def get_tags_by_connector(self, connector_name: str) -> list[TagState]:
         """Get all tags for a specific connector."""
         return [
-            state
-            for state in self._tags.values()
-            if state.definition.connector == connector_name
+            state for state in self._tags.values() if state.definition.connector == connector_name
         ]
 
     def get_statistics(self) -> dict[str, Any]:

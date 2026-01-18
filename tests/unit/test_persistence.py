@@ -56,9 +56,7 @@ class TestServiceStatePersistence:
     """Tests for service state persistence operations."""
 
     @pytest.mark.asyncio
-    async def test_save_and_get_service_state(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_save_and_get_service_state(self, repository: PersistenceRepository) -> None:
         """save_service_state() and get_service_state() round-trip."""
         await repository.save_service_state(
             service_name="Reactor1",
@@ -109,9 +107,7 @@ class TestServiceStatePersistence:
         assert snapshot.parameters == {"flow": 10.0}
 
     @pytest.mark.asyncio
-    async def test_delete_service_state(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_delete_service_state(self, repository: PersistenceRepository) -> None:
         """delete_service_state() removes the service state record."""
         await repository.save_service_state(
             service_name="Reactor1",
@@ -134,9 +130,7 @@ class TestServiceStatePersistence:
         await repository.delete_service_state("NonexistentService")
 
     @pytest.mark.asyncio
-    async def test_get_all_service_states(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_get_all_service_states(self, repository: PersistenceRepository) -> None:
         """get_all_service_states() returns all persisted services."""
         await repository.save_service_state(
             service_name="Reactor1",
@@ -162,9 +156,7 @@ class TestTagValueHistory:
     """Tests for tag value history operations."""
 
     @pytest.mark.asyncio
-    async def test_record_tag_value(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_record_tag_value(self, repository: PersistenceRepository) -> None:
         """record_tag_value() stores tag value with timestamp."""
         timestamp = datetime.now(UTC)
 
@@ -235,9 +227,7 @@ class TestTagValueHistory:
         assert status[0].value == "OK"
 
     @pytest.mark.asyncio
-    async def test_get_tag_history_in_range(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_get_tag_history_in_range(self, repository: PersistenceRepository) -> None:
         """get_tag_history() returns values within time range."""
         base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
@@ -265,9 +255,7 @@ class TestTagValueHistory:
         assert 23.0 in values
 
     @pytest.mark.asyncio
-    async def test_get_tag_history_empty_range(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_get_tag_history_empty_range(self, repository: PersistenceRepository) -> None:
         """get_tag_history() returns empty list for no matches."""
         history = await repository.get_tag_history(
             tag_name="NonexistentTag",
@@ -370,9 +358,7 @@ class TestCommandAuditLog:
         assert logs[0].error_message is None
 
     @pytest.mark.asyncio
-    async def test_log_command_with_error(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_log_command_with_error(self, repository: PersistenceRepository) -> None:
         """log_command() stores failed commands with error message."""
         timestamp = datetime.now(UTC)
 
@@ -395,9 +381,7 @@ class TestCommandAuditLog:
         assert logs[0].error_message == "Value exceeds limit"
 
     @pytest.mark.asyncio
-    async def test_get_audit_log_filtered_by_time(
-        self, repository: PersistenceRepository
-    ) -> None:
+    async def test_get_audit_log_filtered_by_time(self, repository: PersistenceRepository) -> None:
         """get_audit_log() returns logs within time range."""
         base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
@@ -528,9 +512,7 @@ class TestTagValueRecordModel:
         assert record_float.value == 3.14
 
         # Int
-        record_int = TagValueRecord(
-            tag_name="Int", value=42, quality="GOOD", timestamp=timestamp
-        )
+        record_int = TagValueRecord(tag_name="Int", value=42, quality="GOOD", timestamp=timestamp)
         assert record_int.value == 42
 
         # Bool

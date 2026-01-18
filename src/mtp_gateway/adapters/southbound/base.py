@@ -281,8 +281,7 @@ class BaseConnector(ABC):
 
         values_by_address = await self.read_tags([tag.address for tag in tags])
         return {
-            tag.name: values_by_address.get(tag.address, TagValue.bad_no_comm())
-            for tag in tags
+            tag.name: values_by_address.get(tag.address, TagValue.bad_no_comm()) for tag in tags
         }
 
     async def write_tag(self, address: str, value: Any) -> bool:

@@ -386,9 +386,7 @@ class MTPOPCUAServer:
                 to_state=to_state.name,
             )
 
-    async def _update_service_state(
-        self, service_name: str, state: PackMLState
-    ) -> None:
+    async def _update_service_state(self, service_name: str, state: PackMLState) -> None:
         """Update StateCur node for a service.
 
         Args:
@@ -411,9 +409,7 @@ class MTPOPCUAServer:
                     error=str(e),
                 )
 
-    async def _update_service_procedure(
-        self, service_name: str, procedure_id: int
-    ) -> None:
+    async def _update_service_procedure(self, service_name: str, procedure_id: int) -> None:
         """Update ProcedureCur node for a service.
 
         Args:
@@ -436,9 +432,7 @@ class MTPOPCUAServer:
                     error=str(e),
                 )
 
-    async def _handle_command_value(
-        self, service_name: str, command_value: int
-    ) -> None:
+    async def _handle_command_value(self, service_name: str, command_value: int) -> None:
         """Handle a command value written to CommandOp.
 
         PackML commands are 1-10. Value 0 means "no command" and values

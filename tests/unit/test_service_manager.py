@@ -158,7 +158,8 @@ class TestServiceManagerThickMode:
         # Verify on_starting hook was called
         mock_tag_manager.write_tag.assert_called()
         calls = [
-            call for call in mock_tag_manager.write_tag.call_args_list
+            call
+            for call in mock_tag_manager.write_tag.call_args_list
             if call[0] == ("PLC.Start", True)
         ]
         assert len(calls) >= 1
@@ -231,7 +232,8 @@ class TestServiceManagerThickMode:
 
         # Verify on_aborting hook was called
         calls = [
-            call for call in mock_tag_manager.write_tag.call_args_list
+            call
+            for call in mock_tag_manager.write_tag.call_args_list
             if call[0] == ("PLC.Abort", True)
         ]
         assert len(calls) >= 1
@@ -256,7 +258,8 @@ class TestServiceManagerThinMode:
         mock_tag_manager.write_tag.assert_called()
         # START command value is 2
         calls = [
-            call for call in mock_tag_manager.write_tag.call_args_list
+            call
+            for call in mock_tag_manager.write_tag.call_args_list
             if call[0][0] == "PLC.CommandOp"
         ]
         assert len(calls) >= 1

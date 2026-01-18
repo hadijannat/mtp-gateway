@@ -354,8 +354,7 @@ class S7Connector(BaseConnector):
         super().__init__(config)
         if not HAS_SNAP7 or snap7 is None:
             raise ImportError(
-                "snap7 library is required for S7 connector. "
-                "Install with: pip install python-snap7"
+                "snap7 library is required for S7 connector. Install with: pip install python-snap7"
             )
         self._client: Any = None  # snap7.client.Client | None
         self._host = config.host
@@ -449,14 +448,10 @@ class S7Connector(BaseConnector):
             if parsed.area == S7AreaType.DB:
                 if parsed.db_number is None:
                     raise ValueError("DB address requires db_number")
-                return bytes(
-                    client.db_read(parsed.db_number, parsed.offset, parsed.size)
-                )
+                return bytes(client.db_read(parsed.db_number, parsed.offset, parsed.size))
             else:
                 area_code = S7_AREA_CODES[parsed.area]
-                return bytes(
-                    client.read_area(area_code, 0, parsed.offset, parsed.size)
-                )
+                return bytes(client.read_area(area_code, 0, parsed.offset, parsed.size))
 
         raw_bytes = await asyncio.to_thread(read_sync)
 

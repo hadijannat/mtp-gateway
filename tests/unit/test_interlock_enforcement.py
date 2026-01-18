@@ -230,9 +230,7 @@ class TestUnholdBlockedWhenInterlocked:
     ) -> None:
         """UNHOLD should be blocked when service has interlocked elements."""
         # Start with clear interlock to get to HELD state
-        mock_tag_manager.get_value = MagicMock(
-            return_value=TagValue.good(False)
-        )
+        mock_tag_manager.get_value = MagicMock(return_value=TagValue.good(False))
 
         sm = ServiceManager(
             tag_manager=mock_tag_manager,
@@ -285,9 +283,7 @@ class TestSafetyCommandsNotBlocked:
         )
 
         # START first (with clear interlock temporarily)
-        mock_tag_manager.get_value = MagicMock(
-            return_value=TagValue.good(False)
-        )
+        mock_tag_manager.get_value = MagicMock(return_value=TagValue.good(False))
         await sm.send_command("Reactor", PackMLCommand.START)
 
         # Now set interlock
@@ -319,9 +315,7 @@ class TestSafetyCommandsNotBlocked:
         )
 
         # START first (with clear interlock temporarily)
-        mock_tag_manager.get_value = MagicMock(
-            return_value=TagValue.good(False)
-        )
+        mock_tag_manager.get_value = MagicMock(return_value=TagValue.good(False))
         await sm.send_command("Reactor", PackMLCommand.START)
 
         # Now set interlock

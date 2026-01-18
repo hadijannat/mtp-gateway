@@ -212,8 +212,10 @@ class TestEIPConnectorMocked:
 
     async def test_connect_success(self, eip_config: EIPConnectorConfig) -> None:
         """Successful connection sets state to CONNECTED."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
             mock_logix.return_value = mock_driver
@@ -225,12 +227,12 @@ class TestEIPConnectorMocked:
             assert health.state == ConnectorState.CONNECTED
             mock_logix.assert_called_once_with("192.168.1.50", slot=0)
 
-    async def test_connect_failure_sets_error(
-        self, eip_config: EIPConnectorConfig
-    ) -> None:
+    async def test_connect_failure_sets_error(self, eip_config: EIPConnectorConfig) -> None:
         """Connection failure sets ERROR state."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.side_effect = Exception("Connection refused")
             mock_logix.return_value = mock_driver
@@ -243,12 +245,12 @@ class TestEIPConnectorMocked:
             health = connector.health_status()
             assert health.state == ConnectorState.ERROR
 
-    async def test_read_tags_returns_tag_values(
-        self, eip_config: EIPConnectorConfig
-    ) -> None:
+    async def test_read_tags_returns_tag_values(self, eip_config: EIPConnectorConfig) -> None:
         """Reading tags returns dict of TagValue objects."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -272,8 +274,10 @@ class TestEIPConnectorMocked:
 
     async def test_read_multiple_tags(self, eip_config: EIPConnectorConfig) -> None:
         """Reading multiple tags returns all values via batch read."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -302,12 +306,12 @@ class TestEIPConnectorMocked:
             assert abs(result["Tag1"].value - 10.0) < 0.0001
             assert abs(result["Tag2"].value - 20.0) < 0.0001
 
-    async def test_read_failure_returns_bad_quality(
-        self, eip_config: EIPConnectorConfig
-    ) -> None:
+    async def test_read_failure_returns_bad_quality(self, eip_config: EIPConnectorConfig) -> None:
         """Read errors return bad quality."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
             mock_driver.read.side_effect = Exception("Read timeout")
@@ -325,8 +329,10 @@ class TestEIPConnectorMocked:
         self, eip_config: EIPConnectorConfig
     ) -> None:
         """Tag read with error attribute set returns bad quality."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -348,12 +354,12 @@ class TestEIPConnectorMocked:
             # Tag with error should have BAD_CONFIG_ERROR quality
             assert result["BadTag"].quality == Quality.BAD_CONFIG_ERROR
 
-    async def test_read_program_scoped_tag(
-        self, eip_config: EIPConnectorConfig
-    ) -> None:
+    async def test_read_program_scoped_tag(self, eip_config: EIPConnectorConfig) -> None:
         """Read program-scoped tag."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -374,8 +380,10 @@ class TestEIPConnectorMocked:
 
     async def test_read_array_element(self, eip_config: EIPConnectorConfig) -> None:
         """Read array element."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -396,8 +404,10 @@ class TestEIPConnectorMocked:
 
     async def test_write_tag_success(self, eip_config: EIPConnectorConfig) -> None:
         """Write returns True on success."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -418,8 +428,10 @@ class TestEIPConnectorMocked:
 
     async def test_write_tag_failure(self, eip_config: EIPConnectorConfig) -> None:
         """Write returns False on failure."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
             mock_driver.write.side_effect = Exception("Write error")
@@ -432,12 +444,12 @@ class TestEIPConnectorMocked:
 
             assert result is False
 
-    async def test_write_with_error_response(
-        self, eip_config: EIPConnectorConfig
-    ) -> None:
+    async def test_write_with_error_response(self, eip_config: EIPConnectorConfig) -> None:
         """Write with error in response returns False."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -456,8 +468,10 @@ class TestEIPConnectorMocked:
 
     async def test_write_bool_tag(self, eip_config: EIPConnectorConfig) -> None:
         """Write boolean value to tag."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -479,8 +493,10 @@ class TestEIPConnectorMocked:
 
     async def test_write_array_element(self, eip_config: EIPConnectorConfig) -> None:
         """Write to array element."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
 
@@ -499,8 +515,10 @@ class TestEIPConnectorMocked:
 
     async def test_disconnect_graceful(self, eip_config: EIPConnectorConfig) -> None:
         """Disconnect closes driver cleanly."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix, \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver") as mock_logix,
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             mock_driver = MagicMock()
             mock_driver.open.return_value = None
             mock_logix.return_value = mock_driver
@@ -513,12 +531,12 @@ class TestEIPConnectorMocked:
             health = connector.health_status()
             assert health.state == ConnectorState.STOPPED
 
-    async def test_read_without_connect_fails(
-        self, eip_config: EIPConnectorConfig
-    ) -> None:
+    async def test_read_without_connect_fails(self, eip_config: EIPConnectorConfig) -> None:
         """Reading without connecting returns bad quality."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver"), \
-             patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver"),
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", True),
+        ):
             connector = EIPConnector(eip_config)
 
             result = await connector.read_tags(["MyTag"])
@@ -537,8 +555,10 @@ class TestEIPConnectorImportHandling:
 
     def test_missing_pycomm3_raises_import_error(self) -> None:
         """Creating connector without pycomm3 raises ImportError."""
-        with patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", False), \
-             patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver", None):
+        with (
+            patch("mtp_gateway.adapters.southbound.eip.driver.HAS_PYCOMM3", False),
+            patch("mtp_gateway.adapters.southbound.eip.driver.LogixDriver", None),
+        ):
             config = EIPConnectorConfig(
                 name="test_eip",
                 host="192.168.1.50",

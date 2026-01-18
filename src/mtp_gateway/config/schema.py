@@ -534,9 +534,7 @@ class GatewayConfig(BaseModel):
         # Validate tag connector references
         for tag in self.tags:
             if tag.connector not in connector_names:
-                raise ValueError(
-                    f"Tag '{tag.name}' references unknown connector '{tag.connector}'"
-                )
+                raise ValueError(f"Tag '{tag.name}' references unknown connector '{tag.connector}'")
 
         # Validate data assembly bindings
         for da in self.mtp.data_assemblies:

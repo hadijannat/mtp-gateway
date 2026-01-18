@@ -339,9 +339,7 @@ class TestServiceDefinition:
         service = ServiceDefinition(
             name="HeatingService",
             mode=ProxyMode.THICK,
-            procedures=(
-                ProcedureDefinition(id=0, name="Default", is_default=True, parameters=()),
-            ),
+            procedures=(ProcedureDefinition(id=0, name="Default", is_default=True, parameters=()),),
             parameters=(),
             state_hooks=StateHooks(
                 on_starting=(),
@@ -438,9 +436,7 @@ class TestServiceRuntimeState:
         return ServiceDefinition(
             name="TestService",
             mode=ProxyMode.THICK,
-            procedures=(
-                ProcedureDefinition(id=0, name="Main", is_default=True, parameters=()),
-            ),
+            procedures=(ProcedureDefinition(id=0, name="Main", is_default=True, parameters=()),),
             parameters=(),
             state_hooks=StateHooks(
                 on_starting=(),

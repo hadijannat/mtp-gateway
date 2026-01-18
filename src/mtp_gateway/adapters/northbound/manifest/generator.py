@@ -216,9 +216,7 @@ class MTPManifestGenerator:
         # Add attributes
         self._add_attribute(pea, "Name", self._pea_name, "xs:string")
         self._add_attribute(pea, "Version", self._config.gateway.version, "xs:string")
-        self._add_attribute(
-            pea, "Description", self._config.gateway.description, "xs:string"
-        )
+        self._add_attribute(pea, "Description", self._config.gateway.description, "xs:string")
 
         return pea
 
@@ -267,9 +265,7 @@ class MTPManifestGenerator:
         for da_config in self._config.mtp.data_assemblies:
             self._add_data_assembly(da_container, da_config)
 
-    def _add_data_assembly(
-        self, parent: ET.Element, config: DataAssemblyConfig
-    ) -> None:
+    def _add_data_assembly(self, parent: ET.Element, config: DataAssemblyConfig) -> None:
         """Add a single data assembly element."""
         da = ET.SubElement(
             parent,
@@ -422,16 +418,12 @@ class MTPManifestGenerator:
                     "xs:boolean",
                 )
 
-    def _add_attribute(
-        self, parent: ET.Element, name: str, value: str, datatype: str
-    ) -> None:
+    def _add_attribute(self, parent: ET.Element, name: str, value: str, datatype: str) -> None:
         """Add an attribute element."""
         attr = ET.SubElement(parent, "Attribute", {"Name": name, "AttributeDataType": datatype})
         ET.SubElement(attr, "Value").text = value
 
-    def _add_opcua_reference(
-        self, parent: ET.Element, name: str, node_id: str
-    ) -> None:
+    def _add_opcua_reference(self, parent: ET.Element, name: str, node_id: str) -> None:
         """Add an OPC UA node reference attribute."""
         attr = ET.SubElement(
             parent,

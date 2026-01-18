@@ -179,9 +179,7 @@ class ServiceManager:
         for task in self._completion_tasks.values():
             task.cancel()
         if self._completion_tasks:
-            await asyncio.gather(
-                *self._completion_tasks.values(), return_exceptions=True
-            )
+            await asyncio.gather(*self._completion_tasks.values(), return_exceptions=True)
         self._completion_tasks.clear()
 
         # Cancel all sync tasks
@@ -314,9 +312,7 @@ class ServiceManager:
                     (p for p in runtime.definition.procedures if p.is_default),
                     None,
                 )
-                runtime.current_procedure_id = (
-                    default_proc.id if default_proc else 0
-                )
+                runtime.current_procedure_id = default_proc.id if default_proc else 0
 
         # Route based on proxy mode
         match runtime.definition.mode:
@@ -340,9 +336,7 @@ class ServiceManager:
 
         if result.success and result.to_state:
             # Notify subscribers
-            self._notify_subscribers(
-                runtime.definition.name, from_state, result.to_state
-            )
+            self._notify_subscribers(runtime.definition.name, from_state, result.to_state)
 
             # Start completion monitor if entering EXECUTE
             if result.to_state == PackMLState.EXECUTE:
@@ -424,9 +418,7 @@ class ServiceManager:
         result = await runtime.state_machine.complete_acting_state()
 
         if result.success and result.to_state:
-            self._notify_subscribers(
-                runtime.definition.name, from_state, result.to_state
-            )
+            self._notify_subscribers(runtime.definition.name, from_state, result.to_state)
 
             # Check if new state is also an acting state
             if self._is_acting_state(result.to_state):
@@ -480,25 +472,19 @@ class ServiceManager:
 
                 # Self-completing: trigger COMPLETE immediately
                 if completion.self_completing:
-                    await self.send_command(
-                        runtime.definition.name, PackMLCommand.COMPLETE
-                    )
+                    await self.send_command(runtime.definition.name, PackMLCommand.COMPLETE)
                     break
 
                 # Check completion condition
                 if completion.condition:
                     value = self._tag_manager.get_value(completion.condition.tag)
                     if value and completion.condition.evaluate(value.value):
-                        await self.send_command(
-                            runtime.definition.name, PackMLCommand.COMPLETE
-                        )
+                        await self.send_command(runtime.definition.name, PackMLCommand.COMPLETE)
                         break
 
                 # Check timeout
                 if completion.timeout_s and runtime.execute_start_time:
-                    elapsed = (
-                        datetime.now(UTC) - runtime.execute_start_time
-                    ).total_seconds()
+                    elapsed = (datetime.now(UTC) - runtime.execute_start_time).total_seconds()
                     if elapsed >= completion.timeout_s:
                         logger.warning(
                             "Service execution timeout",
@@ -506,9 +492,7 @@ class ServiceManager:
                             timeout_s=completion.timeout_s,
                         )
                         # Timeout: abort the service
-                        await self.send_command(
-                            runtime.definition.name, PackMLCommand.ABORT
-                        )
+                        await self.send_command(runtime.definition.name, PackMLCommand.ABORT)
                         break
 
                 # Wait before next check
@@ -536,9 +520,7 @@ class ServiceManager:
                         if plc_state != current:
                             # Update local state to match PLC
                             runtime.state_machine._state = plc_state
-                            self._notify_subscribers(
-                                runtime.definition.name, current, plc_state
-                            )
+                            self._notify_subscribers(runtime.definition.name, current, plc_state)
                     except ValueError:
                         logger.warning(
                             "Invalid state value from PLC",
@@ -605,9 +587,7 @@ class ServiceManager:
                     error=str(e),
                 )
 
-    async def _persist_service_state(
-        self, service_name: str, runtime: ServiceRuntimeState
-    ) -> None:
+    async def _persist_service_state(self, service_name: str, runtime: ServiceRuntimeState) -> None:
         """Persist service state to repository."""
         if not self._persistence:
             return
@@ -695,9 +675,7 @@ class ServiceManager:
             if tag_value is not None:
                 tag_values[binding.source_tag] = tag_value.value
 
-        return self._interlock_evaluator.check_service_interlocks(
-            service_name, tag_values
-        )
+        return self._interlock_evaluator.check_service_interlocks(service_name, tag_values)
 
     def _track_task(self, task: asyncio.Task[object]) -> None:
         """Track background tasks so they aren't garbage-collected."""

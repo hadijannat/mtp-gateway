@@ -27,7 +27,6 @@ from mtp_gateway.adapters.southbound.base import BaseConnector
 from mtp_gateway.domain.model.tags import Quality, TagDefinition, TagValue
 
 if TYPE_CHECKING:
-
     from mtp_gateway.config.schema import ModbusRTUConnectorConfig, ModbusTCPConnectorConfig
 
 logger = structlog.get_logger(__name__)

@@ -80,9 +80,7 @@ def sample_config() -> GatewayConfig:
 class TestManifestServerConsistency:
     """Tests ensuring manifest and server are consistent."""
 
-    def test_manifest_data_assembly_nodes_match_server(
-        self, sample_config: GatewayConfig
-    ) -> None:
+    def test_manifest_data_assembly_nodes_match_server(self, sample_config: GatewayConfig) -> None:
         """All data assembly node IDs in manifest must exist in server."""
         # Generate manifest node IDs
         generator = MTPManifestGenerator(sample_config)
@@ -115,9 +113,7 @@ class TestManifestServerConsistency:
         for node_id in manifest_node_ids:
             assert node_id in server_node_ids, f"Manifest references missing node: {node_id}"
 
-    def test_manifest_service_nodes_match_server(
-        self, sample_config: GatewayConfig
-    ) -> None:
+    def test_manifest_service_nodes_match_server(self, sample_config: GatewayConfig) -> None:
         """All service node IDs in manifest must exist in server."""
         generator = MTPManifestGenerator(sample_config)
         manifest_node_ids = generator.get_all_node_ids()

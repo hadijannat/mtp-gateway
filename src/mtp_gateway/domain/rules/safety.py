@@ -41,8 +41,7 @@ def parse_rate_string(rate_str: str) -> float:
 
     if not match:
         raise ValueError(
-            "Invalid rate format: "
-            f"'{rate_str}'. Expected format like '10/s', '60/m', '3600/h'"
+            f"Invalid rate format: '{rate_str}'. Expected format like '10/s', '60/m', '3600/h'"
         )
 
     value = float(match.group(1))
@@ -209,10 +208,7 @@ class SafetyController:
         allowlist = frozenset(config.write_allowlist)
 
         # Build safe state outputs as tuple of tuples
-        safe_outputs = tuple(
-            (output.tag, output.value)
-            for output in config.safe_state_outputs
-        )
+        safe_outputs = tuple((output.tag, output.value) for output in config.safe_state_outputs)
 
         # Create rate limiter if configured
         rate_limiter = None

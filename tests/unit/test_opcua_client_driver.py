@@ -175,9 +175,7 @@ class TestOPCUAClientConnectorMocked:
         mock_client.get_node = MagicMock()
         return mock_client
 
-    async def test_connect_success(
-        self, opcua_config: OPCUAClientConnectorConfig
-    ) -> None:
+    async def test_connect_success(self, opcua_config: OPCUAClientConnectorConfig) -> None:
         """Successful connection sets state to CONNECTED."""
         with patch(
             "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
@@ -202,9 +200,7 @@ class TestOPCUAClientConnectorMocked:
             "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
         ) as mock_client_class:
             mock_client = MagicMock()
-            mock_client.connect = AsyncMock(
-                side_effect=Exception("Connection refused")
-            )
+            mock_client.connect = AsyncMock(side_effect=Exception("Connection refused"))
             mock_client_class.return_value = mock_client
 
             connector = OPCUAClientConnector(opcua_config)
@@ -247,9 +243,7 @@ class TestOPCUAClientConnectorMocked:
             assert tag_value.quality == Quality.GOOD
             assert abs(tag_value.value - 25.5) < 0.0001
 
-    async def test_read_multiple_tags(
-        self, opcua_config: OPCUAClientConnectorConfig
-    ) -> None:
+    async def test_read_multiple_tags(self, opcua_config: OPCUAClientConnectorConfig) -> None:
         """Reading multiple nodes returns all values via batch read."""
         with patch(
             "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
@@ -332,9 +326,7 @@ class TestOPCUAClientConnectorMocked:
             assert "ns=2;i=1001" in result
             assert result["ns=2;i=1001"].quality.is_bad()
 
-    async def test_write_tag_success(
-        self, opcua_config: OPCUAClientConnectorConfig
-    ) -> None:
+    async def test_write_tag_success(self, opcua_config: OPCUAClientConnectorConfig) -> None:
         """Write returns True on success."""
         with patch(
             "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
@@ -356,9 +348,7 @@ class TestOPCUAClientConnectorMocked:
             assert result is True
             mock_node.write_value.assert_called_once()
 
-    async def test_write_tag_failure(
-        self, opcua_config: OPCUAClientConnectorConfig
-    ) -> None:
+    async def test_write_tag_failure(self, opcua_config: OPCUAClientConnectorConfig) -> None:
         """Write returns False on failure."""
         with patch(
             "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
@@ -379,9 +369,7 @@ class TestOPCUAClientConnectorMocked:
 
             assert result is False
 
-    async def test_disconnect_graceful(
-        self, opcua_config: OPCUAClientConnectorConfig
-    ) -> None:
+    async def test_disconnect_graceful(self, opcua_config: OPCUAClientConnectorConfig) -> None:
         """Disconnect closes client cleanly."""
         with patch(
             "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
@@ -403,9 +391,7 @@ class TestOPCUAClientConnectorMocked:
         self, opcua_config: OPCUAClientConnectorConfig
     ) -> None:
         """Reading without connecting returns bad quality."""
-        with patch(
-            "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
-        ):
+        with patch("mtp_gateway.adapters.southbound.opcua_client.driver.Client"):
             connector = OPCUAClientConnector(opcua_config)
 
             result = await connector.read_tags(["ns=2;i=1001"])
@@ -413,9 +399,7 @@ class TestOPCUAClientConnectorMocked:
             assert "ns=2;i=1001" in result
             assert result["ns=2;i=1001"].quality.is_bad()
 
-    async def test_read_string_node_id(
-        self, opcua_config: OPCUAClientConnectorConfig
-    ) -> None:
+    async def test_read_string_node_id(self, opcua_config: OPCUAClientConnectorConfig) -> None:
         """Read node with string identifier."""
         with patch(
             "mtp_gateway.adapters.southbound.opcua_client.driver.Client"
