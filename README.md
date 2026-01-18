@@ -187,6 +187,38 @@ mtp-gateway run config.yaml
 
 ---
 
+## 🎬 Demo: Reactor Dosing (Non‑Technical Walkthrough)
+
+**Scenario:** A legacy reactor skid already running in production needs to be integrated into a modern orchestration system—without touching the PLC program. The gateway sits in front of the PLC, exposes a clean OPC UA interface, and generates an MTP package that a process orchestration layer can import.
+
+![MTP Gateway Demo Flow](docs/assets/demo-flow.svg)
+
+### What a non‑technical viewer sees
+
+- **Before:** A reactor skid with temperature, pressure, and a dosing pump that only the PLC understands.
+- **After:** A clean, standardized module that appears in the orchestration system as a plug‑and‑produce asset.
+- **Safety:** Commands are rate‑limited and allow‑listed, with safe‑state behavior on comm loss.
+
+### 3‑minute live demo (no PLC changes)
+
+```bash
+# 1) Validate the reactor demo config
+mtp-gateway validate examples/reactor-pea.yaml
+
+# 2) Generate the MTP package for import
+mtp-gateway generate-manifest examples/reactor-pea.yaml --out ./demo.mtp
+
+# 3) Run the gateway (connects to the configured PLC host)
+mtp-gateway run examples/reactor-pea.yaml
+```
+
+**Demo highlights to call out:**
+- The `.mtp` package is created in seconds and is ready to import.
+- The OPC UA endpoint exposes live values and commands with deterministic NodeIds.
+- If the PLC goes offline, the gateway switches to safe behavior automatically.
+
+---
+
 ## 🏗️ Architecture
 
 MTP Gateway follows a clean three-layer architecture that separates concerns and enables testing:
