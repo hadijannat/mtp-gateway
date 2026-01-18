@@ -12,12 +12,14 @@ The manifest describes:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
+import xml.etree.ElementTree as ET  # nosec B405 - generation only, no parsing
 import zipfile
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import defusedxml.ElementTree as _ET
 import structlog
 
 from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
@@ -30,8 +32,6 @@ if TYPE_CHECKING:
         GatewayConfig,
         ServiceConfig,
     )
-
-ET: Any = _ET
 logger = structlog.get_logger(__name__)
 
 # AutomationML/CAEX namespaces
@@ -47,17 +47,22 @@ INTERFACE_CLASS_LIB = "MTPInterfaceClassLib"
 class MTPManifestGenerator:
     """Generator for MTP-compliant AutomationML manifests."""
 
-    def __init__(self, config: GatewayConfig) -> None:
+    def __init__(self, config: GatewayConfig, deterministic: bool = False) -> None:
         """Initialize the generator.
 
         Args:
-            config: Gateway configuration to generate manifest from
+            config: Gateway configuration to generate manifest from.
+            deterministic: If True, use deterministic UUIDs derived from config hash.
+                          This ensures same config produces byte-identical manifests.
         """
         self._config = config
         self._pea_name = config.gateway.name
         self._namespace_uri = config.opcua.namespace_uri
         self._endpoint = config.opcua.endpoint
         self._node_ids = NodeIdStrategy(namespace_uri=self._namespace_uri, namespace_idx=0)
+        self._deterministic = deterministic
+        self._uuid_counter = 0
+        self._config_hash = self._compute_config_hash() if deterministic else None
 
     def generate(self, output_path: Path | None = None) -> str:
         """Generate the MTP manifest XML.
@@ -69,6 +74,10 @@ class MTPManifestGenerator:
             XML string of the manifest
         """
         logger.info("Generating MTP manifest", pea_name=self._pea_name)
+
+        # Reset UUID counter for deterministic mode (ensures same output on repeated calls)
+        if self._deterministic:
+            self._uuid_counter = 0
 
         # Create root CAEX element
         root = self._create_caex_root()
@@ -154,7 +163,7 @@ class MTPManifestGenerator:
         if self._config.gateway.vendor_url:
             ET.SubElement(ai, "WriterVendorURL").text = self._config.gateway.vendor_url
         ET.SubElement(ai, "WriterVersion").text = self._config.gateway.version
-        ET.SubElement(ai, "LastWritingDateTime").text = datetime.now(UTC).isoformat()
+        ET.SubElement(ai, "LastWritingDateTime").text = self._get_timestamp()
 
         return root
 
@@ -433,8 +442,25 @@ class MTPManifestGenerator:
         ET.SubElement(attr, "Value").text = node_id
 
     def _generate_uuid(self) -> str:
-        """Generate a unique ID for CAEX elements."""
+        """Generate a unique ID for CAEX elements.
+
+        In deterministic mode, generates reproducible UUIDs from config hash.
+        Otherwise uses random UUIDs.
+        """
+        if self._deterministic and self._config_hash:
+            # Generate deterministic UUID from config hash and counter
+            self._uuid_counter += 1
+            # Create UUID v5 (SHA-1 based) from namespace + counter
+            namespace = uuid.UUID(self._config_hash[:32])
+            return str(uuid.uuid5(namespace, str(self._uuid_counter)))
         return str(uuid.uuid4())
+
+    def _compute_config_hash(self) -> str:
+        """Compute a hash of the configuration for deterministic UUID generation."""
+        # Serialize config to JSON for consistent hashing
+        config_dict = self._config.model_dump(mode="json")
+        config_json = json.dumps(config_dict, sort_keys=True)
+        return hashlib.sha256(config_json.encode()).hexdigest()
 
     def _to_xml_string(self, root: ET.Element) -> str:
         """Convert element tree to formatted XML string."""
@@ -462,9 +488,20 @@ class MTPManifestGenerator:
         return f"""MTP Package Information
 Name: {self._pea_name}
 Version: {self._config.gateway.version}
-Generated: {datetime.now(UTC).isoformat()}
+Generated: {self._get_timestamp()}
 Generator: MTP Gateway
 """
+
+    def _get_timestamp(self) -> str:
+        """Get timestamp for manifest.
+
+        In deterministic mode, returns a fixed timestamp.
+        Otherwise returns current UTC time.
+        """
+        if self._deterministic:
+            # Fixed timestamp for deterministic builds
+            return "2000-01-01T00:00:00+00:00"
+        return datetime.now(UTC).isoformat()
 
     def get_all_node_ids(self) -> list[str]:
         """Get all OPC UA node IDs that will be in the manifest.

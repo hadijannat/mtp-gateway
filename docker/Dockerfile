@@ -3,11 +3,14 @@
 # Multi-stage build for minimal production image
 
 ARG PYTHON_VERSION=3.11
+ARG VERSION=0.0.0
 
 # ============================================================
 # Stage 1: Build stage with all dependencies
 # ============================================================
 FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
+
+ARG VERSION
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,11 +21,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Set version for hatch-vcs when no git history available
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+
 # Install Python dependencies
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir .
+    pip install --no-cache-dir . && \
+    # Clean up to reduce image size
+    find /opt/venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /opt/venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
+    find /opt/venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
+    find /opt/venv -name "*.pyc" -delete 2>/dev/null || true && \
+    find /opt/venv -name "*.pyo" -delete 2>/dev/null || true && \
+    rm -rf /opt/venv/share/doc 2>/dev/null || true
 
 # ============================================================
 # Stage 2: Production runtime

@@ -195,8 +195,8 @@ class MTPNodeBuilder:
         # Add type-specific variables based on data assembly type
         da_type = config.type
 
-        if da_type in ("AnaView", "AnaServParam", "AnaVlv", "AnaDrv"):
-            # Analog value
+        if da_type in ("AnaView", "AnaServParam", "AnaVlv", "AnaDrv", "AnaMon"):
+            # Analog value (including monitoring types)
             await self._add_analog_variables(da_obj, base_path, config, binding_writable)
 
         elif da_type in ("BinView", "BinServParam", "BinVlv", "BinDrv"):
@@ -427,6 +427,16 @@ class MTPNodeBuilder:
 
         # For valve/drive types
         if config.type in ("BinVlv", "BinDrv"):
+            # General feedback (single boolean)
+            await self._add_variable(
+                parent,
+                base_path,
+                "VFbk",
+                False,
+                ua.VariantType.Boolean,
+                writable=binding_writable.get("VFbk", False),
+            )
+            # Separate open/close feedback
             await self._add_variable(
                 parent,
                 base_path,

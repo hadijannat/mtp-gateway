@@ -396,31 +396,31 @@ def create_connector(config: ConnectorConfig) -> ConnectorPort:
     """
     # Import implementations here to avoid circular imports
     if config.type == ConnectorType.MODBUS_TCP:
-        from mtp_gateway.adapters.southbound.modbus.driver import (  # noqa: PLC0415
+        from mtp_gateway.adapters.southbound.modbus.driver import (
             ModbusTCPConnector,
         )
 
         return ModbusTCPConnector(config)
 
     elif config.type == ConnectorType.MODBUS_RTU:
-        from mtp_gateway.adapters.southbound.modbus.driver import (  # noqa: PLC0415
+        from mtp_gateway.adapters.southbound.modbus.driver import (
             ModbusRTUConnector,
         )
 
         return ModbusRTUConnector(config)
 
     elif config.type == ConnectorType.S7:
-        from mtp_gateway.adapters.southbound.s7.driver import S7Connector  # noqa: PLC0415
+        from mtp_gateway.adapters.southbound.s7.driver import S7Connector
 
         return S7Connector(config)
 
     elif config.type == ConnectorType.EIP:
-        from mtp_gateway.adapters.southbound.eip.driver import EIPConnector  # noqa: PLC0415
+        from mtp_gateway.adapters.southbound.eip.driver import EIPConnector
 
         return EIPConnector(config)
 
     elif config.type == ConnectorType.OPCUA_CLIENT:
-        from mtp_gateway.adapters.southbound.opcua_client.driver import (  # noqa: PLC0415
+        from mtp_gateway.adapters.southbound.opcua_client.driver import (
             OPCUAClientConnector,
         )
 

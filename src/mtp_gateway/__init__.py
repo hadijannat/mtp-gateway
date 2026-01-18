@@ -7,7 +7,12 @@ This package provides a production-grade gateway that:
 - Supports Thin, Thick, and Hybrid proxy modes
 """
 
-__version__ = "0.1.0"
+# Version is set dynamically by hatch-vcs from git tags
+try:
+    from mtp_gateway._version import __version__
+except ImportError:
+    __version__ = "0.0.0.dev0"  # Development fallback
+
 __author__ = "MTP Gateway Team"
 
 from mtp_gateway.domain.model.tags import Quality, TagValue

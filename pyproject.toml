@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "mtp-gateway"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Production-grade gateway bridging legacy PLCs to MTP-compliant OPC UA interface"
 readme = "README.md"
 license = "MIT"
@@ -74,6 +74,16 @@ include = [
     "/src",
     "/tests",
 ]
+
+# Version from git tags (hatch-vcs)
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"  # Clean versions for PyPI
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/mtp_gateway/_version.py"
 
 # Ruff configuration
 [tool.ruff]
