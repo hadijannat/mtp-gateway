@@ -387,6 +387,7 @@ class TestOPCUAServerServiceManagerIntegration:
         server._server = MagicMock()
         server._server.init = AsyncMock()
         server._server.start = AsyncMock()
+        server._server.stop = AsyncMock()
         server._server.register_namespace = AsyncMock(return_value=2)
         server._server.nodes = MagicMock()
         server._server.nodes.objects = MagicMock()

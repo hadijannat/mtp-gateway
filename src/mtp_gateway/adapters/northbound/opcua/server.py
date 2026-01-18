@@ -92,9 +92,10 @@ class MTPOPCUAServer:
             endpoint=self._config.opcua.endpoint,
         )
 
-        # Create server
-        self._server = Server()
-        await self._server.init()
+        # Create server (allow tests to inject a stub server)
+        if self._server is None:
+            self._server = Server()
+            await self._server.init()
 
         # Configure server
         self._server.set_endpoint(self._config.opcua.endpoint)
