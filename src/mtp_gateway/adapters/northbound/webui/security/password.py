@@ -135,7 +135,7 @@ class PasswordService:
             True if hash should be regenerated with new parameters
         """
         try:
-            return self._hasher.check_needs_rehash(hash_value)
+            return bool(self._hasher.check_needs_rehash(hash_value))
         except InvalidHashError:
             # Invalid hashes definitely need rehashing (after verification elsewhere)
             return True

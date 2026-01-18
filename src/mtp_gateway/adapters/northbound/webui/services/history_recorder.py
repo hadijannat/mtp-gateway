@@ -79,8 +79,8 @@ class HistoryRecorder:
 
         # Running state
         self._running = False
-        self._flush_task: asyncio.Task | None = None
-        self._background_tasks: set[asyncio.Task] = set()
+        self._flush_task: asyncio.Task[None] | None = None
+        self._background_tasks: set[asyncio.Task[None]] = set()
 
         # Statistics
         self._records_written = 0

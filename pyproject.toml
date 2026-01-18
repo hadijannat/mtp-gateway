@@ -176,6 +176,9 @@ minversion = "7.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+timeout = 120
+timeout_method = "signal"
+faulthandler_timeout = 120
 addopts = [
     "-ra",
     "-q",

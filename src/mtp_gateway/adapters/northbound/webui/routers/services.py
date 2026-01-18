@@ -5,6 +5,8 @@ Provides endpoints for service state and command operations.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -25,6 +27,9 @@ from mtp_gateway.adapters.northbound.webui.schemas.services import (
 from mtp_gateway.adapters.northbound.webui.security.rbac import Permission
 from mtp_gateway.domain.state_machine.packml import PackMLCommand
 
+if TYPE_CHECKING:
+    from mtp_gateway.application.service_manager import ServiceManager
+
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
@@ -39,7 +44,10 @@ def _state_to_enum(state: object) -> ServiceState:
         return ServiceState.UNDEFINED
 
 
-def _format_service_response(service_name: str, service_manager: object) -> ServiceResponse:
+def _format_service_response(
+    service_name: str,
+    service_manager: ServiceManager,
+) -> ServiceResponse:
     """Format a service for API response."""
     # Get service state from manager
     state = service_manager.get_service_state(service_name)

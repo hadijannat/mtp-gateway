@@ -429,6 +429,18 @@ class ServiceManager:
             return state
         return PackMLState.UNDEFINED
 
+    def get_all_service_names(self) -> list[str]:
+        """Get a sorted list of configured service names."""
+        return sorted(self._definitions.keys())
+
+    def get_service_config(self, name: str) -> ServiceDefinition | None:
+        """Get the service definition for a service name."""
+        return self._definitions.get(name)
+
+    def is_service_interlocked(self, name: str) -> bool:
+        """Return True if the service is currently interlocked."""
+        return self._check_interlocks(name).interlocked
+
     def subscribe(self, callback: StateChangeCallback) -> None:
         """Subscribe to state change notifications."""
         self._subscribers.append(callback)

@@ -8,7 +8,7 @@ Provides dependency injection for:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
@@ -19,6 +19,8 @@ from mtp_gateway.adapters.northbound.webui.security.jwt import TokenPayload, Tok
 from mtp_gateway.adapters.northbound.webui.security.rbac import Permission, User
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from mtp_gateway.application.service_manager import ServiceManager
     from mtp_gateway.application.tag_manager import TagManager
     from mtp_gateway.config.schema import GatewayConfig
@@ -38,7 +40,7 @@ def get_tag_manager(request: Request) -> TagManager:
     Returns:
         TagManager instance
     """
-    return request.app.state.tag_manager
+    return cast("TagManager", request.app.state.tag_manager)
 
 
 def get_service_manager(request: Request) -> ServiceManager | None:
@@ -50,7 +52,7 @@ def get_service_manager(request: Request) -> ServiceManager | None:
     Returns:
         ServiceManager instance or None
     """
-    return request.app.state.service_manager
+    return cast("ServiceManager | None", request.app.state.service_manager)
 
 
 def get_token_service(request: Request) -> TokenService:
@@ -62,7 +64,7 @@ def get_token_service(request: Request) -> TokenService:
     Returns:
         TokenService instance
     """
-    return request.app.state.token_service
+    return cast("TokenService", request.app.state.token_service)
 
 
 def get_config(request: Request) -> GatewayConfig:
@@ -74,7 +76,7 @@ def get_config(request: Request) -> GatewayConfig:
     Returns:
         GatewayConfig instance
     """
-    return request.app.state.config
+    return cast("GatewayConfig", request.app.state.config)
 
 
 async def get_current_token(
@@ -145,7 +147,7 @@ async def get_current_user(
     )
 
 
-def require_permission(permission: str | Permission):
+def require_permission(permission: str | Permission) -> Callable[[User], Awaitable[User]]:
     """Create a dependency that requires a specific permission.
 
     Usage:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from itertools import count
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, TypedDict
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -36,8 +36,25 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
+class MockAlarm(TypedDict):
+    """Mock alarm data structure for in-memory storage."""
+
+    id: int
+    alarm_id: str
+    source: str
+    priority: int
+    state: str
+    message: str
+    value: float | None
+    raised_at: str
+    acknowledged_at: str | None
+    acknowledged_by: str | None
+    cleared_at: str | None
+    shelved_until: str | None
+
+
 # In-memory alarm storage - used when database is not configured
-_MOCK_ALARMS: dict[int, dict] = {
+_MOCK_ALARMS: dict[int, MockAlarm] = {
     1: {
         "id": 1,
         "alarm_id": "TEMP_HIGH_001",
@@ -70,7 +87,7 @@ _MOCK_ALARMS: dict[int, dict] = {
 _ALARM_ID_COUNTER = count(start=3)
 
 
-def _format_alarm_response(alarm_data: dict) -> AlarmResponse:
+def _format_alarm_response(alarm_data: MockAlarm) -> AlarmResponse:
     """Format alarm data dict for API response."""
     return AlarmResponse(
         id=alarm_data["id"],
@@ -98,7 +115,7 @@ def _format_alarm_record(record: AlarmRecord) -> AlarmResponse:
         state=AlarmState(record.state),
         message=record.message,
         value=record.value,
-        raised_at=record.raised_at.isoformat() if record.raised_at else None,
+        raised_at=record.raised_at.isoformat(),
         acknowledged_at=record.acknowledged_at.isoformat() if record.acknowledged_at else None,
         acknowledged_by=record.acknowledged_by_username,
         cleared_at=record.cleared_at.isoformat() if record.cleared_at else None,
@@ -147,6 +164,8 @@ async def list_alarms(
     Returns:
         List of alarms matching filters
     """
+    alarm_responses: list[AlarmResponse] = []
+
     if alarm_repo:
         # Database mode
         alarms, total, active_count, unacknowledged_count = await alarm_repo.get_all(
@@ -159,7 +178,6 @@ async def list_alarms(
         alarm_responses = [_format_alarm_record(a) for a in alarms]
     else:
         # In-memory mock mode
-        alarm_responses: list[AlarmResponse] = []
         active_count = 0
         unacknowledged_count = 0
 

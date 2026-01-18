@@ -318,6 +318,10 @@ class TagManager:
         """Get all tag states."""
         return self._tags.copy()
 
+    def get_all_tag_names(self) -> list[str]:
+        """Get all tag names."""
+        return sorted(self._tags.keys())
+
     async def read_tag(self, name: str) -> TagValue | None:
         """Read a tag immediately (bypass polling cache).
 

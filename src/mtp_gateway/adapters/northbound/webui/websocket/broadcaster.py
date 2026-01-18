@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from mtp_gateway.application.service_manager import ServiceManager
     from mtp_gateway.application.tag_manager import TagManager
     from mtp_gateway.domain.model.tags import TagValue
+    from mtp_gateway.domain.state_machine.packml import PackMLState
 
 logger = structlog.get_logger(__name__)
 
@@ -53,7 +54,7 @@ class EventBroadcaster:
         self._last_update: dict[str, float] = {}  # tag_name -> timestamp
         self._pending_updates: dict[str, dict[str, Any]] = {}  # tag_name -> payload
         self._update_task: asyncio.Task[None] | None = None
-        self._background_tasks: set[asyncio.Task] = set()
+        self._background_tasks: set[asyncio.Task[object]] = set()
         self._running = False
 
     async def start(self) -> None:
@@ -77,7 +78,7 @@ class EventBroadcaster:
 
         logger.info("Event broadcaster stopped")
 
-    def _track_task(self, task: asyncio.Task) -> None:
+    def _track_task(self, task: asyncio.Task[object]) -> None:
         """Track a background task to avoid garbage collection."""
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
@@ -145,8 +146,8 @@ class EventBroadcaster:
     def on_state_change(
         self,
         service_name: str,
-        from_state: str,
-        to_state: str,
+        from_state: PackMLState,
+        to_state: PackMLState,
     ) -> None:
         """Handle service state change from ServiceManager.
 
@@ -159,8 +160,8 @@ class EventBroadcaster:
         """
         payload = {
             "service_name": service_name,
-            "from_state": from_state,
-            "to_state": to_state,
+            "from_state": from_state.name,
+            "to_state": to_state.name,
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
@@ -238,7 +239,7 @@ class EventBroadcaster:
             priority: Alarm priority (1-4), optional
             message: Alarm message, optional
         """
-        payload = {
+        payload: dict[str, Any] = {
             "action": action,
             "alarm_id": alarm_id,
             "source": source,

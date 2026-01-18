@@ -6,7 +6,7 @@ Provides endpoints for reading and writing tag values.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -24,6 +24,9 @@ from mtp_gateway.adapters.northbound.webui.schemas.tags import (
     TagWriteResponse,
 )
 from mtp_gateway.adapters.northbound.webui.security.rbac import Permission
+
+if TYPE_CHECKING:
+    from mtp_gateway.application.tag_manager import TagManager
 
 logger = structlog.get_logger(__name__)
 
@@ -44,12 +47,10 @@ def _quality_to_enum(quality: Any) -> TagQuality:
         return TagQuality.NOT_CONNECTED
 
 
-def _format_tag_value(name: str, tag_manager: Any) -> TagValue:
+def _format_tag_value(name: str, tag_manager: TagManager) -> TagValue:
     """Format a tag value for API response."""
-    # Get tag value from manager
-    tag_value = tag_manager.get_tag(name)
-
-    if tag_value is None:
+    tag_state = tag_manager.get_tag(name)
+    if tag_state is None:
         return TagValue(
             name=name,
             value=None,
@@ -60,17 +61,18 @@ def _format_tag_value(name: str, tag_manager: Any) -> TagValue:
             writable=False,
         )
 
-    timestamp = tag_value.timestamp if tag_value.timestamp else datetime.now(UTC)
+    tag_value = tag_state.current_value
+    timestamp = tag_value.timestamp if tag_value and tag_value.timestamp else datetime.now(UTC)
     timestamp_str = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
 
     return TagValue(
         name=name,
-        value=tag_value.value,
-        quality=_quality_to_enum(tag_value.quality),
+        value=tag_value.value if tag_value else None,
+        quality=_quality_to_enum(tag_state.quality),
         timestamp=timestamp_str,
-        unit="",  # Would come from config
-        datatype="",  # Would come from config
-        writable=False,  # Would come from config
+        unit=tag_state.definition.unit,
+        datatype=tag_state.definition.datatype.value,
+        writable=tag_state.definition.writable,
     )
 
 
@@ -178,7 +180,7 @@ async def write_tag(
         HTTPException: If tag not found or write fails
     """
     # Get current value for response
-    current = tag_manager.get_tag(tag_name)
+    current = tag_manager.get_value(tag_name)
     previous_value = current.value if current else None
 
     try:

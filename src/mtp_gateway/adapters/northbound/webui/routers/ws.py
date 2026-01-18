@@ -5,12 +5,15 @@ Provides WebSocket endpoint for real-time updates.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
 import structlog
 from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
 from jose import JWTError
 
-from mtp_gateway.adapters.northbound.webui.security.jwt import TokenService  # noqa: TC001
-from mtp_gateway.adapters.northbound.webui.websocket.manager import WebSocketManager  # noqa: TC001
+if TYPE_CHECKING:
+    from mtp_gateway.adapters.northbound.webui.security.jwt import TokenService
+    from mtp_gateway.adapters.northbound.webui.websocket.manager import WebSocketManager
 
 logger = structlog.get_logger(__name__)
 
@@ -19,12 +22,12 @@ router = APIRouter()
 
 def get_ws_manager(request: Request) -> WebSocketManager:
     """Get WebSocket manager from app state."""
-    return request.app.state.ws_manager
+    return cast("WebSocketManager", request.app.state.ws_manager)
 
 
 def get_token_service(request: Request) -> TokenService:
     """Get token service from app state."""
-    return request.app.state.token_service
+    return cast("TokenService", request.app.state.token_service)
 
 
 @router.websocket("/ws")
