@@ -82,10 +82,10 @@ class StubServiceManager:
     def get_service_config(self, name: str) -> ServiceConfig | None:
         return self._config if name in self._states else None
 
-    def is_service_interlocked(self, name: str) -> bool:
+    def is_service_interlocked(self, _name: str) -> bool:
         return False
 
-    async def send_command(self, name: str, command: Any, procedure_id: int | None = None) -> None:
+    async def send_command(self, name: str, command: Any, _procedure_id: int | None = None) -> None:
         if name not in self._states:
             raise ValueError("Service not found")
         self.last_command = command.name if hasattr(command, "name") else str(command)

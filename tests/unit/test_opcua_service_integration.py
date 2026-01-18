@@ -311,12 +311,12 @@ class TestOPCUANodeBuilderServiceNodes:
                 self.name = name
                 self.children: dict[str, FakeNode] = {}
 
-            async def add_folder(self, _node_id: object, name: str) -> "FakeNode":
+            async def add_folder(self, _node_id: object, name: str) -> FakeNode:
                 node = FakeNode(name)
                 self.children[name] = node
                 return node
 
-            async def add_object(self, _node_id: object, name: str) -> "FakeNode":
+            async def add_object(self, _node_id: object, name: str) -> FakeNode:
                 node = FakeNode(name)
                 self.children[name] = node
                 return node
