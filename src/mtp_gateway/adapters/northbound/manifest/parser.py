@@ -9,9 +9,9 @@ Parses MTP-compliant manifest files to extract:
 
 from __future__ import annotations
 
-import defusedxml.ElementTree as ET
 from typing import TYPE_CHECKING, Any
 
+import defusedxml.ElementTree as ET
 import structlog
 
 if TYPE_CHECKING:
@@ -21,10 +21,12 @@ if TYPE_CHECKING:
 CAEX_NS = "http://www.dke.de/CAEX"
 NS = {"caex": CAEX_NS}
 
+
 # Element tags with namespace prefix for querying
 def _tag(name: str) -> str:
     """Create a namespaced tag."""
     return f"{{{CAEX_NS}}}{name}"
+
 
 logger = structlog.get_logger(__name__)
 

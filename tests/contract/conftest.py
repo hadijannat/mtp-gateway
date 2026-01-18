@@ -7,7 +7,7 @@ generated MTP manifest actually exists in the live OPC UA server address space.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import TYPE_CHECKING
 
 import pytest
 from asyncua import Client
@@ -29,9 +29,10 @@ from mtp_gateway.config.schema import (
     ServiceConfig,
     TagConfig,
 )
+from tests.contract.helpers import OPCUABrowser
 
 if TYPE_CHECKING:
-    from asyncua import Node
+    from collections.abc import AsyncGenerator
 
 
 # Auto-mark all tests in this package as contract tests
@@ -68,16 +69,60 @@ def contract_config() -> GatewayConfig:
         ],
         tags=[
             # Analog tags
-            TagConfig(name="temp_pv", connector="test_plc", address="40001", datatype=DataTypeConfig.FLOAT32),
-            TagConfig(name="temp_sp", connector="test_plc", address="40003", datatype=DataTypeConfig.FLOAT32, writable=True),
-            TagConfig(name="pressure_pv", connector="test_plc", address="40005", datatype=DataTypeConfig.FLOAT32),
+            TagConfig(
+                name="temp_pv",
+                connector="test_plc",
+                address="40001",
+                datatype=DataTypeConfig.FLOAT32,
+            ),
+            TagConfig(
+                name="temp_sp",
+                connector="test_plc",
+                address="40003",
+                datatype=DataTypeConfig.FLOAT32,
+                writable=True,
+            ),
+            TagConfig(
+                name="pressure_pv",
+                connector="test_plc",
+                address="40005",
+                datatype=DataTypeConfig.FLOAT32,
+            ),
             # Binary tags
-            TagConfig(name="valve_cmd", connector="test_plc", address="00001", datatype=DataTypeConfig.BOOL, writable=True),
-            TagConfig(name="valve_fbk", connector="test_plc", address="10001", datatype=DataTypeConfig.BOOL),
-            TagConfig(name="pump_run", connector="test_plc", address="00002", datatype=DataTypeConfig.BOOL, writable=True),
+            TagConfig(
+                name="valve_cmd",
+                connector="test_plc",
+                address="00001",
+                datatype=DataTypeConfig.BOOL,
+                writable=True,
+            ),
+            TagConfig(
+                name="valve_fbk",
+                connector="test_plc",
+                address="10001",
+                datatype=DataTypeConfig.BOOL,
+            ),
+            TagConfig(
+                name="pump_run",
+                connector="test_plc",
+                address="00002",
+                datatype=DataTypeConfig.BOOL,
+                writable=True,
+            ),
             # Service state tags
-            TagConfig(name="dosing_state", connector="test_plc", address="40010", datatype=DataTypeConfig.UINT32),
-            TagConfig(name="dosing_cmd", connector="test_plc", address="40011", datatype=DataTypeConfig.UINT32, writable=True),
+            TagConfig(
+                name="dosing_state",
+                connector="test_plc",
+                address="40010",
+                datatype=DataTypeConfig.UINT32,
+            ),
+            TagConfig(
+                name="dosing_cmd",
+                connector="test_plc",
+                address="40011",
+                datatype=DataTypeConfig.UINT32,
+                writable=True,
+            ),
         ],
         mtp=MTPConfig(
             data_assemblies=[
@@ -207,8 +252,6 @@ async def server_node_ids(
     Returns a set of expanded node ID strings for all nodes
     in the server's address space under the PEA hierarchy.
     """
-    from tests.contract.helpers import OPCUABrowser
-
     browser = OPCUABrowser(opcua_client, contract_config)
     return await browser.browse_all_node_ids()
 
@@ -223,7 +266,5 @@ async def server_nodes_with_types(
     Returns a dict mapping expanded node ID strings to their
     OPC UA VariantType names.
     """
-    from tests.contract.helpers import OPCUABrowser
-
     browser = OPCUABrowser(opcua_client, contract_config)
     return await browser.browse_nodes_with_types()

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -28,7 +27,7 @@ from mtp_gateway.security.secrets import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from pathlib import Path
 
 
 class TestCertificateManager:
@@ -140,7 +139,7 @@ class TestCertificateManager:
         original_mtime = cert_path.stat().st_mtime
 
         # Load or generate should use existing
-        result_cert, result_key = await manager.load_or_generate(
+        result_cert, _result_key = await manager.load_or_generate(
             cert_path=cert_path,
             key_path=key_path,
             common_name="existing-test",

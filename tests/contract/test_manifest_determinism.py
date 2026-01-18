@@ -9,7 +9,7 @@ These tests verify:
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -28,6 +28,9 @@ from mtp_gateway.config.schema import (
     ServiceConfig,
     TagConfig,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -137,7 +140,9 @@ class TestManifestDeterminism:
         # Different generator instances with same config should produce same output
         assert xml1 == xml2
 
-    def test_different_configs_produce_different_manifests(self, sample_config: GatewayConfig) -> None:
+    def test_different_configs_produce_different_manifests(
+        self, sample_config: GatewayConfig
+    ) -> None:
         """Different configurations should produce different manifests."""
         gen1 = MTPManifestGenerator(sample_config, deterministic=True)
         xml1 = gen1.generate()

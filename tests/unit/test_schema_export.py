@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from mtp_gateway.config.schema_export import (
     SCHEMA_VERSION,
     export_json_schema,

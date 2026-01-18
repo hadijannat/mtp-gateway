@@ -90,6 +90,7 @@ version-file = "src/mtp_gateway/_version.py"
 target-version = "py311"
 line-length = 100
 src = ["src", "tests"]
+exclude = ["src/mtp_gateway/_version.py"]
 
 [tool.ruff.lint]
 select = [

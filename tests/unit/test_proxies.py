@@ -6,7 +6,6 @@ service command execution in different modes.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -31,7 +30,6 @@ from mtp_gateway.domain.model.tags import TagValue
 from mtp_gateway.domain.state_machine.packml import (
     PackMLCommand,
     PackMLState,
-    PackMLStateMachine,
 )
 
 
@@ -217,9 +215,7 @@ class TestThinProxy:
         result = await proxy.send_command(PackMLCommand.START)
 
         assert result.success is True
-        mock_tag_manager.write_tag.assert_called_with(
-            "PLC.CommandOp", PackMLCommand.START.value
-        )
+        mock_tag_manager.write_tag.assert_called_with("PLC.CommandOp", PackMLCommand.START.value)
 
     @pytest.mark.asyncio
     async def test_send_command_fails_without_command_tag(
@@ -243,9 +239,7 @@ class TestThinProxy:
         self, mock_tag_manager: MagicMock, thin_service_config: ServiceConfig
     ) -> None:
         """ThinProxy.get_state() should read state from state_cur_tag."""
-        mock_tag_manager.get_value.return_value = TagValue.good(
-            PackMLState.EXECUTE.value
-        )
+        mock_tag_manager.get_value.return_value = TagValue.good(PackMLState.EXECUTE.value)
 
         proxy = ThinProxy(
             config=thin_service_config,
@@ -319,9 +313,7 @@ class TestHybridProxy:
         self, mock_tag_manager: MagicMock, hybrid_service_config: ServiceConfig
     ) -> None:
         """HybridProxy.get_state() should prefer PLC state when available."""
-        mock_tag_manager.get_value.return_value = TagValue.good(
-            PackMLState.EXECUTE.value
-        )
+        mock_tag_manager.get_value.return_value = TagValue.good(PackMLState.EXECUTE.value)
 
         proxy = HybridProxy(
             config=hybrid_service_config,

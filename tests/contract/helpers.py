@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import defusedxml.ElementTree as ET
+from asyncua import ua
 
 if TYPE_CHECKING:
     from asyncua import Client, Node
@@ -74,15 +75,15 @@ class ManifestParser:
 
     def _is_internal_element(self, tag: str) -> bool:
         """Check if tag represents an InternalElement (with or without namespace)."""
-        return tag == "InternalElement" or tag == f"{self.CAEX_NS_PREFIX}InternalElement"
+        return tag in ("InternalElement", f"{self.CAEX_NS_PREFIX}InternalElement")
 
     def _is_attribute(self, tag: str) -> bool:
         """Check if tag represents an Attribute (with or without namespace)."""
-        return tag == "Attribute" or tag == f"{self.CAEX_NS_PREFIX}Attribute"
+        return tag in ("Attribute", f"{self.CAEX_NS_PREFIX}Attribute")
 
     def _is_value(self, tag: str) -> bool:
         """Check if tag represents a Value (with or without namespace)."""
-        return tag == "Value" or tag == f"{self.CAEX_NS_PREFIX}Value"
+        return tag in ("Value", f"{self.CAEX_NS_PREFIX}Value")
 
     def _parse(self) -> None:
         """Parse the manifest and extract all node references."""
@@ -202,8 +203,6 @@ class OPCUABrowser:
         Returns:
             Dict mapping node ID strings to their VariantType names
         """
-        from asyncua import ua
-
         result: dict[str, str] = {}
         namespace_uri = self._config.opcua.namespace_uri
 
@@ -243,8 +242,6 @@ class OPCUABrowser:
         ns_idx: int,
     ) -> None:
         """Recursively browse and collect node IDs."""
-        from asyncua import ua
-
         # Get node's NodeId
         nodeid = node.nodeid
 
@@ -270,8 +267,6 @@ class OPCUABrowser:
         ns_idx: int,
     ) -> None:
         """Recursively browse and collect node IDs with types."""
-        from asyncua import ua
-
         nodeid = node.nodeid
 
         if nodeid.NamespaceIndex == ns_idx:
@@ -308,8 +303,7 @@ class OPCUABrowser:
         Returns:
             The node's value
         """
-        # Parse the node ID string
-        # Format: nsu=namespace;s=identifier
+        # Parse the node ID string format: nsu=namespace;s=identifier
         match = re.match(r"nsu=([^;]+);s=(.+)", node_id_str)
         if not match:
             raise ValueError(f"Invalid node ID format: {node_id_str}")
@@ -321,8 +315,6 @@ class OPCUABrowser:
         ns_idx = ns_array.index(namespace_uri)
 
         # Get the node
-        from asyncua import ua
-
         nodeid = ua.NodeId(identifier, ns_idx)
         node = self._client.get_node(nodeid)
 
@@ -349,8 +341,6 @@ class OPCUABrowser:
                 ns_idx = ns_array.index(namespace_uri)
             except ValueError:
                 return False
-
-            from asyncua import ua
 
             nodeid = ua.NodeId(identifier, ns_idx)
             node = self._client.get_node(nodeid)

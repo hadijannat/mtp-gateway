@@ -5,17 +5,11 @@ Tests command logging, state transition logging, and audit retrieval.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime
 
 import pytest
 
-from mtp_gateway.application.audit import (
-    AuditEntry,
-    AuditTrail,
-    CommandAuditEntry,
-    StateTransitionAuditEntry,
-)
+from mtp_gateway.application.audit import AuditTrail, CommandAuditEntry, StateTransitionAuditEntry
 from mtp_gateway.domain.state_machine.packml import (
     PackMLCommand,
     PackMLState,
@@ -135,9 +129,7 @@ class TestAuditTrailLogCommand:
     """Tests for AuditTrail.log_command()."""
 
     @pytest.mark.asyncio
-    async def test_logs_successful_command(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_logs_successful_command(self, audit_trail: AuditTrail) -> None:
         """log_command() should log successful commands."""
         result = TransitionResult(
             success=True,
@@ -157,9 +149,7 @@ class TestAuditTrailLogCommand:
         assert entries[0].command == PackMLCommand.START
 
     @pytest.mark.asyncio
-    async def test_logs_failed_command(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_logs_failed_command(self, audit_trail: AuditTrail) -> None:
         """log_command() should log failed commands."""
         result = TransitionResult(
             success=False,
@@ -179,9 +169,7 @@ class TestAuditTrailLogCommand:
         assert entries[0].result.success is False
 
     @pytest.mark.asyncio
-    async def test_logs_with_procedure_id(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_logs_with_procedure_id(self, audit_trail: AuditTrail) -> None:
         """log_command() should log procedure ID when provided."""
         result = TransitionResult(
             success=True,
@@ -206,9 +194,7 @@ class TestAuditTrailLogStateTransition:
     """Tests for AuditTrail.log_state_transition()."""
 
     @pytest.mark.asyncio
-    async def test_logs_state_transition(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_logs_state_transition(self, audit_trail: AuditTrail) -> None:
         """log_state_transition() should log transitions."""
         await audit_trail.log_state_transition(
             service="TestService",
@@ -224,9 +210,7 @@ class TestAuditTrailLogStateTransition:
         assert entries[0].to_state == PackMLState.STARTING
 
     @pytest.mark.asyncio
-    async def test_logs_transition_trigger(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_logs_transition_trigger(self, audit_trail: AuditTrail) -> None:
         """log_state_transition() should log trigger reason."""
         await audit_trail.log_state_transition(
             service="TestService",
@@ -245,9 +229,7 @@ class TestAuditTrailGetEntries:
     """Tests for AuditTrail.get_entries()."""
 
     @pytest.mark.asyncio
-    async def test_returns_all_entries(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_returns_all_entries(self, audit_trail: AuditTrail) -> None:
         """get_entries() should return all entries."""
         result = TransitionResult(
             success=True,
@@ -271,9 +253,7 @@ class TestAuditTrailGetEntries:
         assert len(entries) == 2
 
     @pytest.mark.asyncio
-    async def test_filter_by_service(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_filter_by_service(self, audit_trail: AuditTrail) -> None:
         """get_entries() should filter by service name."""
         result = TransitionResult(
             success=True,
@@ -298,9 +278,7 @@ class TestAuditTrailGetEntries:
         assert entries[0].service == "Service1"
 
     @pytest.mark.asyncio
-    async def test_entries_ordered_chronologically(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_entries_ordered_chronologically(self, audit_trail: AuditTrail) -> None:
         """get_entries() should return entries in chronological order."""
         result = TransitionResult(
             success=True,
@@ -351,9 +329,7 @@ class TestAuditTrailLimits:
         assert entries[-1].service == "Service9"
 
     @pytest.mark.asyncio
-    async def test_clear_entries(
-        self, audit_trail: AuditTrail
-    ) -> None:
+    async def test_clear_entries(self, audit_trail: AuditTrail) -> None:
         """clear() should remove all entries."""
         result = TransitionResult(
             success=True,

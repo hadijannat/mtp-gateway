@@ -13,17 +13,16 @@ import asyncio
 from typing import TYPE_CHECKING
 
 import pytest
-from asyncua import ua
 
-from mtp_gateway.adapters.northbound.manifest.generator import MTPManifestGenerator
 from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
-from mtp_gateway.application.tag_manager import TagManager
 
-from .helpers import ContractViolation, ManifestParser, OPCUABrowser, compare_manifest_to_server
+from .helpers import ManifestParser, OPCUABrowser, compare_manifest_to_server
 
 if TYPE_CHECKING:
     from asyncua import Client
 
+    from mtp_gateway.adapters.northbound.manifest.generator import MTPManifestGenerator
+    from mtp_gateway.application.tag_manager import TagManager
     from mtp_gateway.config.schema import GatewayConfig
 
 
@@ -33,7 +32,6 @@ class TestLiveServerContract:
 
     async def test_all_manifest_node_ids_exist_in_server(
         self,
-        opcua_server: MTPOPCUAServer,
         opcua_client: Client,
         manifest_generator: MTPManifestGenerator,
         contract_config: GatewayConfig,
@@ -55,13 +53,10 @@ class TestLiveServerContract:
 
         if violations:
             violation_details = "\n".join(str(v) for v in violations)
-            pytest.fail(
-                f"Contract violations found ({len(violations)}):\n{violation_details}"
-            )
+            pytest.fail(f"Contract violations found ({len(violations)}):\n{violation_details}")
 
     async def test_manifest_data_types_match_server(
         self,
-        opcua_server: MTPOPCUAServer,
         opcua_client: Client,
         manifest_generator: MTPManifestGenerator,
         contract_config: GatewayConfig,
@@ -85,9 +80,9 @@ class TestLiveServerContract:
 
             # Parse node ID to check type
             # Service state variables should be UInt32
-            if "StateCur" in node_id or "CommandOp" in node_id:
-                expected_type = "UInt32"
-            elif "ProcedureCur" in node_id or "ProcedureReq" in node_id:
+            if any(
+                key in node_id for key in ("StateCur", "CommandOp", "ProcedureCur", "ProcedureReq")
+            ):
                 expected_type = "UInt32"
             else:
                 # Data assembly values can be various types
@@ -103,13 +98,10 @@ class TestLiveServerContract:
                     )
 
         if type_mismatches:
-            pytest.fail(
-                f"Data type mismatches:\n" + "\n".join(type_mismatches)
-            )
+            pytest.fail("Data type mismatches:\n" + "\n".join(type_mismatches))
 
     async def test_service_state_machine_nodes_browsable(
         self,
-        opcua_server: MTPOPCUAServer,
         opcua_client: Client,
         contract_config: GatewayConfig,
     ) -> None:
@@ -151,18 +143,16 @@ class TestLiveServerContract:
 
         errors: list[str] = []
         if missing_nodes:
-            errors.append(f"Missing service nodes:\n" + "\n".join(missing_nodes))
+            errors.append("Missing service nodes:\n" + "\n".join(missing_nodes))
         if access_errors:
-            errors.append(f"Access errors:\n" + "\n".join(access_errors))
+            errors.append("Access errors:\n" + "\n".join(access_errors))
 
         if errors:
             pytest.fail("\n\n".join(errors))
 
     async def test_data_assembly_structure_matches_manifest(
         self,
-        opcua_server: MTPOPCUAServer,
         opcua_client: Client,
-        manifest_generator: MTPManifestGenerator,
         contract_config: GatewayConfig,
     ) -> None:
         """Data assembly structure must match between manifest and server.
@@ -183,14 +173,10 @@ class TestLiveServerContract:
                 node_id = f"nsu={ns_uri};s={da_base}.{binding_name}"
                 exists = await browser.verify_node_exists(node_id)
                 if not exists:
-                    missing_bindings.append(
-                        f"  {da.name}.{binding_name} ({node_id})"
-                    )
+                    missing_bindings.append(f"  {da.name}.{binding_name} ({node_id})")
 
         if missing_bindings:
-            pytest.fail(
-                f"Missing data assembly bindings:\n" + "\n".join(missing_bindings)
-            )
+            pytest.fail("Missing data assembly bindings:\n" + "\n".join(missing_bindings))
 
     async def test_node_id_stability_across_restarts(
         self,
@@ -203,6 +189,7 @@ class TestLiveServerContract:
         same config, all NodeIds must be identical. This is critical
         for POL systems that cache NodeId references.
         """
+
         async def start_server_and_collect_node_ids() -> set[str]:
             """Start server and return all node IDs."""
             server = MTPOPCUAServer(
@@ -236,9 +223,7 @@ class TestLiveServerContract:
                 errors.append(f"Only in run 1: {only_in_run1}")
             if only_in_run2:
                 errors.append(f"Only in run 2: {only_in_run2}")
-            pytest.fail(
-                f"NodeIds not stable across restarts:\n" + "\n".join(errors)
-            )
+            pytest.fail("NodeIds not stable across restarts:\n" + "\n".join(errors))
 
 
 @pytest.mark.contract
@@ -269,14 +254,10 @@ class TestManifestXMLContract:
         parser = ManifestParser(manifest_xml)
         node_ids = parser.get_all_node_ids()
 
-        pea_name = f"PEA_{contract_config.gateway.name}"
-
         for da in contract_config.mtp.data_assemblies:
             # Check at least one node ID contains the data assembly name
             matching = [nid for nid in node_ids if f".{da.name}." in nid]
-            assert matching, (
-                f"Data assembly '{da.name}' not found in manifest node IDs"
-            )
+            assert matching, f"Data assembly '{da.name}' not found in manifest node IDs"
 
     async def test_manifest_contains_all_services(
         self,
@@ -291,9 +272,7 @@ class TestManifestXMLContract:
         for service in contract_config.mtp.services:
             # Check service nodes exist
             matching = [nid for nid in node_ids if f".{service.name}." in nid]
-            assert matching, (
-                f"Service '{service.name}' not found in manifest node IDs"
-            )
+            assert matching, f"Service '{service.name}' not found in manifest node IDs"
 
 
 @pytest.mark.contract
@@ -302,7 +281,6 @@ class TestServerAddressSpace:
 
     async def test_server_has_pea_root_node(
         self,
-        opcua_server: MTPOPCUAServer,
         opcua_client: Client,
         contract_config: GatewayConfig,
     ) -> None:
@@ -323,7 +301,6 @@ class TestServerAddressSpace:
 
     async def test_server_has_data_assemblies_folder(
         self,
-        opcua_server: MTPOPCUAServer,
         opcua_client: Client,
         contract_config: GatewayConfig,
     ) -> None:
@@ -356,7 +333,6 @@ class TestServerAddressSpace:
 
     async def test_server_has_services_folder(
         self,
-        opcua_server: MTPOPCUAServer,
         opcua_client: Client,
         contract_config: GatewayConfig,
     ) -> None:

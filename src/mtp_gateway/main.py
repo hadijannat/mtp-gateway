@@ -192,7 +192,7 @@ async def run_gateway(config_path: Path, override_path: Path | None = None) -> N
 
 def main() -> None:
     """CLI entry point - delegates to typer app."""
-    from mtp_gateway.cli.app import app
+    from mtp_gateway.cli.app import app  # noqa: PLC0415
 
     app()
 
