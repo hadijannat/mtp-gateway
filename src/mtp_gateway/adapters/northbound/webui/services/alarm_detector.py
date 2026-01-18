@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from mtp_gateway.adapters.northbound.webui.database.repository import AlarmRepository
-from mtp_gateway.adapters.northbound.webui.routers.alarms import auto_clear_alarm, raise_alarm
+from mtp_gateway.adapters.northbound.webui.routers import alarms as alarm_routes
 
 if TYPE_CHECKING:
     from mtp_gateway.adapters.northbound.webui.database.connection import DatabasePool
@@ -101,11 +101,11 @@ class AlarmDetector:
         self._monitors: dict[str, MonitorConfig] = {}
 
         # Background tasks for tag change processing
-        self._background_tasks: set[asyncio.Task] = set()
+        self._background_tasks: set[asyncio.Task[None]] = set()
 
         # Running state
         self._running = False
-        self._check_task: asyncio.Task | None = None
+        self._check_task: asyncio.Task[None] | None = None
 
     def _load_monitors(self) -> None:
         """Load monitor configurations from gateway config."""
@@ -408,7 +408,7 @@ class AlarmDetector:
         if self._db_pool and self._db_pool.is_connected:
             alarm_repo = AlarmRepository(self._db_pool.pool)
 
-        db_id = await raise_alarm(
+        db_id = await alarm_routes.raise_alarm(
             alarm_repo=alarm_repo,
             alarm_id=alarm_id,
             source=source,
@@ -447,7 +447,7 @@ class AlarmDetector:
         if self._db_pool and self._db_pool.is_connected:
             alarm_repo = AlarmRepository(self._db_pool.pool)
 
-        cleared = await auto_clear_alarm(
+        cleared = await alarm_routes.auto_clear_alarm(
             alarm_repo=alarm_repo,
             alarm_id=alarm_id,
             source=source,
