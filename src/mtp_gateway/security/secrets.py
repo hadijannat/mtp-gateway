@@ -236,7 +236,7 @@ class VaultSecretProvider(BaseSecretProvider):
         self._vault_token = vault_token or os.environ.get("VAULT_TOKEN")
         self._mount_point = mount_point
         self._path_prefix = path_prefix
-        self._client: object | None = None
+        self._client: hvac.Client | None = None
 
     @property
     def provider_name(self) -> str:
@@ -253,7 +253,7 @@ class VaultSecretProvider(BaseSecretProvider):
                 ) from e
 
             self._client = hvac_module.Client(url=self._vault_url, token=self._vault_token)
-        return self._client  # type: ignore[return-value]
+        return self._client
 
     async def get_secret(self, key: str) -> str | None:
         """Retrieve a secret from Vault.
@@ -269,12 +269,13 @@ class VaultSecretProvider(BaseSecretProvider):
             path = f"{self._path_prefix}{key}"
 
             # Use KV v2 API
-            response = client.secrets.kv.v2.read_secret_version(  # type: ignore[union-attr]
+            response = client.secrets.kv.v2.read_secret_version(
                 path=path,
                 mount_point=self._mount_point,
             )
 
-            value = response.get("data", {}).get("data", {}).get("value")
+            raw_value = response.get("data", {}).get("data", {}).get("value")
+            value = str(raw_value) if raw_value is not None else None
 
             if value is not None:
                 masked = mask_sensitive_value(value) if is_sensitive_key(key) else "[value]"

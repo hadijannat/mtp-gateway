@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import defusedxml.ElementTree as ET
+import defusedxml.ElementTree as _ET
 import structlog
 
 if TYPE_CHECKING:
@@ -28,6 +28,7 @@ def _tag(name: str) -> str:
     return f"{{{CAEX_NS}}}{name}"
 
 
+ET: Any = _ET
 logger = structlog.get_logger(__name__)
 
 

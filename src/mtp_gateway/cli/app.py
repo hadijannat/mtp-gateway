@@ -13,7 +13,7 @@ import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 import typer
 import yaml
@@ -644,7 +644,7 @@ def security_check_cert(
         table.add_column("Field", style="cyan")
         table.add_column("Value")
 
-        subject = info.get("subject", {})
+        subject = cast("dict[str, str]", info.get("subject", {}))
         table.add_row("Common Name", str(subject.get("commonName", "N/A")))
         table.add_row("Organization", str(subject.get("organizationName", "N/A")))
         table.add_row("Serial Number", str(info.get("serial_number", "N/A")))
