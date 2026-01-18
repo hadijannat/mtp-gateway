@@ -74,6 +74,20 @@ class ComparisonOp(str, Enum):
     LE = "le"
 
 
+class ByteOrder(str, Enum):
+    """Byte order for multi-byte values."""
+
+    BIG = "big"
+    LITTLE = "little"
+
+
+class WordOrder(str, Enum):
+    """Word order for multi-register values."""
+
+    BIG = "big"
+    LITTLE = "little"
+
+
 # =============================================================================
 # BASE CONFIGURATION MODELS
 # =============================================================================
@@ -87,6 +101,8 @@ class GatewayInfo(BaseModel):
     name: str = Field(..., min_length=1, max_length=64, description="Gateway instance name")
     version: str = Field(default="1.0.0", description="Gateway version")
     description: str = Field(default="", max_length=500)
+    vendor: str = Field(default="", max_length=128, description="Vendor or organization name")
+    vendor_url: str = Field(default="", max_length=256, description="Vendor website URL")
 
 
 class OPCUASecurityConfig(BaseModel):
@@ -234,6 +250,14 @@ class TagConfig(BaseModel):
     connector: str = Field(..., description="Reference to connector name")
     address: str = Field(..., description="Protocol-specific address")
     datatype: DataTypeConfig = Field(..., description="Data type")
+    byte_order: ByteOrder = Field(
+        default=ByteOrder.BIG,
+        description="Byte order for multi-byte values (Modbus)",
+    )
+    word_order: WordOrder = Field(
+        default=WordOrder.BIG,
+        description="Word order for multi-register values (Modbus)",
+    )
     writable: bool = Field(default=False, description="Allow writes")
     scale: ScaleConfigModel | None = Field(default=None, description="Linear scaling")
     unit: str = Field(default="", max_length=32, description="Engineering unit")

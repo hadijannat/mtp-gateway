@@ -66,20 +66,28 @@ class GatewayRuntime:
     async def _init_tag_manager(self) -> None:
         """Initialize tag manager for polling."""
         from mtp_gateway.application.tag_manager import TagManager
+        from mtp_gateway.domain.rules.safety import SafetyController
 
+        safety = SafetyController.from_config(self.config.safety)
         self._tag_manager = TagManager(
             connectors=self._connectors,
             tags=self.config.tags,
+            safety=safety,
         )
         await self._tag_manager.start()
 
     async def _init_service_manager(self) -> None:
         """Initialize service manager for state machine execution."""
         from mtp_gateway.application.service_manager import ServiceManager
+        from mtp_gateway.domain.rules.safety import SafetyController
 
+        interlock_evaluator = self._build_interlock_evaluator()
+        safety = SafetyController.from_config(self.config.safety)
         self._service_manager = ServiceManager(
             tag_manager=self._tag_manager,
             services=self.config.mtp.services,
+            safety=safety,
+            interlock_evaluator=interlock_evaluator,
         )
         await self._service_manager.start()
 
@@ -93,6 +101,43 @@ class GatewayRuntime:
             service_manager=self._service_manager,
         )
         await self._opcua_server.start()
+
+    def _build_interlock_evaluator(self) -> InterlockEvaluator | None:
+        """Build interlock evaluator from configuration."""
+        from mtp_gateway.domain.rules.interlocks import (
+            ComparisonOperator,
+            InterlockBinding,
+            InterlockEvaluator,
+        )
+
+        if not self.config.mtp.data_assemblies:
+            return None
+
+        bindings: dict[str, InterlockBinding] = {}
+        da_by_name = {da.name: da for da in self.config.mtp.data_assemblies}
+
+        for service in self.config.mtp.services:
+            referenced = {p.data_assembly for p in service.parameters}
+            referenced.update(service.report_values)
+
+            for da_name in referenced:
+                da = da_by_name.get(da_name)
+                if not da or not da.interlock_binding:
+                    continue
+
+                binding = da.interlock_binding
+                element_name = f"{service.name}:{da.name}"
+                bindings[element_name] = InterlockBinding(
+                    element_name=element_name,
+                    source_tag=binding.source_tag,
+                    condition=ComparisonOperator(binding.condition.value),
+                    ref_value=binding.ref_value,
+                )
+
+        if not bindings:
+            return None
+
+        return InterlockEvaluator(bindings=bindings)
 
     async def stop(self) -> None:
         """Stop the gateway runtime gracefully."""

@@ -6,6 +6,8 @@ gateway:
   name: Reactor_PEA_01
   version: "1.0.0"
   description: Example reactor module with temperature control and dosing
+  vendor: Hadijannat
+  vendor_url: https://github.com/hadijannat/mtp-gateway
 
 # OPC UA Server Configuration
 opcua:
@@ -38,6 +40,8 @@ tags:
     connector: reactor_plc
     address: "40001"
     datatype: float32
+    byte_order: big
+    word_order: big
     scale:
       gain: 0.1
       offset: 0
@@ -48,6 +52,8 @@ tags:
     connector: reactor_plc
     address: "40003"
     datatype: float32
+    byte_order: big
+    word_order: big
     scale:
       gain: 0.1
       offset: 0
@@ -59,6 +65,8 @@ tags:
     connector: reactor_plc
     address: "40005"
     datatype: float32
+    byte_order: big
+    word_order: big
     scale:
       gain: 0.001
       offset: 0
@@ -71,6 +79,8 @@ tags:
     address: "40010"
     datatype: float32
     writable: true
+    byte_order: big
+    word_order: big
     scale:
       gain: 0.1
       offset: 0
@@ -83,6 +93,8 @@ tags:
     address: "00001"
     datatype: bool
     writable: true
+    byte_order: big
+    word_order: big
     description: Inlet valve control
 
   - name: outlet_valve
@@ -90,18 +102,24 @@ tags:
     address: "00002"
     datatype: bool
     writable: true
+    byte_order: big
+    word_order: big
     description: Outlet valve control
 
   - name: inlet_valve_fbk
     connector: reactor_plc
     address: "10001"
     datatype: bool
+    byte_order: big
+    word_order: big
     description: Inlet valve feedback (open)
 
   - name: outlet_valve_fbk
     connector: reactor_plc
     address: "10002"
     datatype: bool
+    byte_order: big
+    word_order: big
     description: Outlet valve feedback (open)
 
   # Dosing pump
@@ -110,6 +128,8 @@ tags:
     address: "40020"
     datatype: float32
     writable: true
+    byte_order: big
+    word_order: big
     unit: "%"
     description: Dosing pump speed setpoint
 
@@ -117,6 +137,8 @@ tags:
     connector: reactor_plc
     address: "10010"
     datatype: bool
+    byte_order: big
+    word_order: big
     description: Dosing pump running feedback
 
   # Service state (for thin proxy)
@@ -124,6 +146,8 @@ tags:
     connector: reactor_plc
     address: "40100"
     datatype: uint16
+    byte_order: big
+    word_order: big
     description: Dosing service state
 
   - name: dosing_cmd
@@ -131,6 +155,8 @@ tags:
     address: "40101"
     datatype: uint16
     writable: true
+    byte_order: big
+    word_order: big
     description: Dosing service command
 
 # MTP Configuration

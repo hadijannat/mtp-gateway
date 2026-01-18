@@ -1,185 +1,158 @@
 # MTP Gateway
 
-Production-grade gateway bridging legacy PLCs to MTP-compliant OPC UA interface.
+Bridges brownfield PLCs to an MTP-compliant OPC UA interface, with deterministic
+NodeIds and AutomationML manifest generation for plug-and-produce integration.
 
-## Overview
+[![CI](https://github.com/hadijannat/mtp-gateway/actions/workflows/ci.yaml/badge.svg)](https://github.com/hadijannat/mtp-gateway/actions/workflows/ci.yaml)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-MTP Gateway connects brownfield industrial PLCs to modern Process Orchestration Layers (POLs) by:
+## At a glance
 
-- **Southbound Adapters**: Connect to PLCs via Modbus TCP/RTU, Siemens S7, EtherNet/IP, or OPC UA
-- **Northbound Interface**: Expose an MTP-compliant OPC UA address space following VDI/VDE/NAMUR 2658
-- **Manifest Generation**: Generate AutomationML manifests for POL import
-- **Proxy Modes**: Support Thin, Thick, and Hybrid proxy configurations
+- **Southbound**: Modbus TCP/RTU, Siemens S7, EtherNet/IP, OPC UA Client
+- **Northbound**: OPC UA server with MTP address space + AutomationML manifest
+- **Proxy modes**: Thin, Thick, Hybrid per service
+- **Operationally safe**: write allowlists, rate limits, quality propagation
+- **Deterministic**: stable NodeIds across restarts from config
 
-## Quick Start
+## Who this is for
 
-### Installation
+- **Controls & automation** teams integrating legacy PLCs with modern POLs
+- **System integrators** who need repeatable, configuration-driven rollouts
+- **Software teams** building industrial edge products with clean architecture
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           NORTHBOUND                                │
+│     OPC UA Server (MTP Address Space) + AutomationML Manifest        │
+├─────────────────────────────────────────────────────────────────────┤
+│                             CORE                                    │
+│   Tag Model · Mapping Engine · Service Engine · Safety & Interlocks  │
+├─────────────────────────────────────────────────────────────────────┤
+│                           SOUTHBOUND                                │
+│      Modbus TCP/RTU · S7 · EtherNet/IP · OPC UA Client               │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Quick start
 
 ```bash
-# Clone the repository
-git clone https://github.com/example/mtp-gateway.git
+git clone https://github.com/hadijannat/mtp-gateway.git
 cd mtp-gateway
 
-# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# or: .venv\Scripts\activate  # Windows
+source .venv/bin/activate
 
-# Install in development mode
 pip install -e ".[dev]"
 ```
 
-### Generate Example Configuration
+Generate a config, validate, run:
 
 ```bash
 mtp-gateway generate-example -o config.yaml
-```
-
-### Validate Configuration
-
-```bash
-mtp-gateway validate config.yaml -v
-```
-
-### Run the Gateway
-
-```bash
+mtp-gateway validate config.yaml
 mtp-gateway run config.yaml
 ```
 
-### Generate MTP Manifest
+Generate an AutomationML manifest or an MTP package:
 
 ```bash
 mtp-gateway generate-manifest config.yaml -o module.aml
-# Or generate a complete MTP package:
 mtp-gateway generate-manifest config.yaml -o module.mtp --package
 ```
 
-## Configuration
+Probe PLC connectivity:
 
-Configuration is done via YAML files. See `examples/` for sample configurations.
+```bash
+mtp-gateway probe config.yaml
+mtp-gateway probe config.yaml --connector reactor_plc
+```
 
-### Basic Structure
+## Configuration overview
+
+MTP Gateway is configuration-driven. See `examples/reactor-pea.yaml` for a full
+reference. The essentials:
 
 ```yaml
 gateway:
   name: Reactor_PEA_01
   version: "1.0.0"
+  vendor: Hadijannat
+  vendor_url: https://github.com/hadijannat/mtp-gateway
 
 opcua:
   endpoint: opc.tcp://0.0.0.0:4840
   namespace_uri: urn:example:reactor-pea
+  security:
+    allow_none: false
 
 connectors:
-  - name: plc_modbus
+  - name: reactor_plc
     type: modbus_tcp
     host: 192.168.1.100
     port: 502
 
 tags:
   - name: reactor_temp
-    connector: plc_modbus
+    connector: reactor_plc
     address: "40001"
     datatype: float32
+    byte_order: big
+    word_order: big
     unit: degC
 
 mtp:
   data_assemblies:
-    - name: TempSensor_01
+    - name: TempSensor_Reactor
       type: AnaView
       bindings:
         V: reactor_temp
+  services:
+    - name: Dosing
+      mode: thin_proxy
+      state_cur_tag: dosing_state
+      command_op_tag: dosing_cmd
+
+safety:
+  write_allowlist:
+    - dosing_cmd
 ```
 
-## Architecture
+## CLI commands
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    NORTHBOUND ADAPTERS                          │
-│  ┌─────────────────┐  ┌─────────────────────────────────────┐  │
-│  │  OPC UA Server  │  │  MTP Manifest Generator (AML/CAEX) │  │
-│  └────────┬────────┘  └──────────────────┬──────────────────┘  │
-├───────────┴──────────────────────────────┴──────────────────────┤
-│                        APPLICATION CORE                          │
-│  Tag Manager │ Service Manager │ Data Assembly Registry          │
-├─────────────────────────────────────────────────────────────────┤
-│                    SOUTHBOUND ADAPTERS                           │
-│  Modbus TCP/RTU │ S7 (Snap7) │ EtherNet/IP │ OPC UA Client      │
-└─────────────────────────────────────────────────────────────────┘
-```
+- `mtp-gateway run <config.yaml>`: start the gateway
+- `mtp-gateway validate <config.yaml>`: validate configuration
+- `mtp-gateway generate-manifest <config.yaml> -o <file>`: generate AML/MTP
+- `mtp-gateway probe <config.yaml>`: test connector connectivity
+- `mtp-gateway generate-example`: create a starter config
+- `mtp-gateway version`: show version
 
-## Supported Protocols
+## Protocols & drivers
 
-| Protocol | Status | Library |
-|----------|--------|---------|
-| Modbus TCP | ✅ Ready | pymodbus |
-| Modbus RTU | ✅ Ready | pymodbus |
-| Siemens S7 | 🔄 Planned | python-snap7 |
-| EtherNet/IP | 🔄 Planned | pycomm3 |
-| OPC UA Client | 🔄 Planned | asyncua |
+| Protocol | Status | Notes |
+| --- | --- | --- |
+| Modbus TCP/RTU | Ready | Included by default |
+| Siemens S7 | Ready | Install with `.[s7]` |
+| EtherNet/IP | Ready | Install with `.[eip]` |
+| OPC UA Client | Ready | Included by default |
 
-## Data Assembly Types
-
-Following VDI 2658-4:
-
-| Type | Description |
-|------|-------------|
-| AnaView | Read-only analog value |
-| BinView | Read-only binary value |
-| DIntView | Read-only integer value |
-| AnaServParam | Writable analog parameter |
-| BinServParam | Writable binary parameter |
-| BinVlv | Binary valve control |
-| AnaVlv | Analog valve control |
-| PIDCtrl | PID controller |
-
-## Development
-
-### Run Tests
+## Testing & quality
 
 ```bash
-# Unit tests
-pytest tests/unit -v
-
-# Integration tests (requires Modbus simulator)
-docker run -d -p 5020:5020 oitc/modbus-server
-pytest tests/integration -v
-
-# All tests with coverage
-pytest --cov=src/mtp_gateway --cov-report=html
-```
-
-### Code Quality
-
-```bash
-# Lint and format
+pytest -q
 ruff check src/ tests/
 ruff format src/ tests/
-
-# Type checking
 mypy src/
-
-# Run all checks
 pre-commit run --all-files
 ```
 
 ## Docker
 
-### Build
-
 ```bash
 docker build -t mtp-gateway -f docker/Dockerfile .
-```
-
-### Run
-
-```bash
 docker run -p 4840:4840 -v ./config.yaml:/config/config.yaml mtp-gateway
-```
-
-### Docker Compose
-
-```bash
 docker compose -f docker/docker-compose.yaml up
 ```
 

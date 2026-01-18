@@ -318,8 +318,15 @@ class TestOPCUANodeBuilderServiceNodes:
         await server.init()
         ns = await server.register_namespace("urn:test")
 
-        builder = MTPNodeBuilder(server, ns)
-        all_nodes, service_nodes, _interlock_bindings = await builder.build(minimal_gateway_config)
+        builder = MTPNodeBuilder(server, ns, minimal_gateway_config.opcua.namespace_uri)
+        (
+            all_nodes,
+            service_nodes,
+            _interlock_bindings,
+            _tag_bindings,
+            _tag_nodes,
+            _writable_nodes,
+        ) = await builder.build(minimal_gateway_config)
 
         # Verify service nodes dict has our service
         assert "MixingService" in service_nodes
@@ -374,7 +381,7 @@ class TestOPCUAServerServiceManagerIntegration:
 
         with patch(
             'mtp_gateway.adapters.northbound.opcua.server.build_address_space',
-            new=AsyncMock(return_value=({}, {}, {})),
+            new=AsyncMock(return_value=({}, {}, {}, {}, {}, {})),
         ):
             await server.start()
 
@@ -417,7 +424,7 @@ class TestOPCUAServerServiceManagerIntegration:
 
         with patch(
             'mtp_gateway.adapters.northbound.opcua.server.build_address_space',
-            new=AsyncMock(return_value=({}, {}, {})),
+            new=AsyncMock(return_value=({}, {}, {}, {}, {}, {})),
         ):
             await server.start()
             subscriber_count_after_start = len(service_manager._subscribers)

@@ -208,6 +208,8 @@ class TagDefinition:
     scale: ScaleConfig | None = None
     unit: str = ""
     description: str = ""
+    byte_order: str = "big"
+    word_order: str = "big"
 
     def apply_scale(self, raw_value: float | int) -> float:
         """Apply scaling if configured."""

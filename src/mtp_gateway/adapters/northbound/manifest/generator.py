@@ -21,6 +21,8 @@ from xml.etree import ElementTree as ET
 
 import structlog
 
+from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
+
 if TYPE_CHECKING:
     from mtp_gateway.config.schema import (
         DataAssemblyConfig,
@@ -53,6 +55,7 @@ class MTPManifestGenerator:
         self._pea_name = config.gateway.name
         self._namespace_uri = config.opcua.namespace_uri
         self._endpoint = config.opcua.endpoint
+        self._node_ids = NodeIdStrategy(namespace_uri=self._namespace_uri, namespace_idx=0)
 
     def generate(self, output_path: Path | None = None) -> str:
         """Generate the MTP manifest XML.
@@ -144,9 +147,11 @@ class MTPManifestGenerator:
         ai = ET.SubElement(root, "AdditionalInformation")
         ET.SubElement(ai, "WriterHeader").text = "MTP Gateway Manifest Generator"
         ET.SubElement(ai, "WriterID").text = "mtp-gateway"
-        ET.SubElement(ai, "WriterVendor").text = "MTP Gateway"
-        ET.SubElement(ai, "WriterVendorURL").text = "https://github.com/example/mtp-gateway"
-        ET.SubElement(ai, "WriterVersion").text = "1.0"
+        vendor = self._config.gateway.vendor or self._config.gateway.name
+        ET.SubElement(ai, "WriterVendor").text = vendor
+        if self._config.gateway.vendor_url:
+            ET.SubElement(ai, "WriterVendorURL").text = self._config.gateway.vendor_url
+        ET.SubElement(ai, "WriterVersion").text = self._config.gateway.version
         ET.SubElement(ai, "LastWritingDateTime").text = datetime.now(timezone.utc).isoformat()
 
         return root
@@ -287,10 +292,10 @@ class MTPManifestGenerator:
             self._add_attribute(da, "Description", config.description, "xs:string")
 
         # Add OPC UA node references for each binding
-        base_node_id = f"ns=2;s=PEA_{self._pea_name}.DataAssemblies.{config.name}"
+        base_node_path = f"PEA_{self._pea_name}.DataAssemblies.{config.name}"
 
-        for attr_name, tag_ref in config.bindings.items():
-            node_id = f"{base_node_id}.{attr_name}"
+        for attr_name, _tag_ref in config.bindings.items():
+            node_id = self._node_ids.expanded_node_id(f"{base_node_path}.{attr_name}")
             self._add_opcua_reference(da, attr_name, node_id)
 
         # Add scaling attributes if present
@@ -336,12 +341,28 @@ class MTPManifestGenerator:
         self._add_attribute(service, "ProxyMode", config.mode.value, "xs:string")
 
         # Add state machine variables
-        base_node_id = f"ns=2;s=PEA_{self._pea_name}.Services.{config.name}"
+        base_node_path = f"PEA_{self._pea_name}.Services.{config.name}"
 
-        self._add_opcua_reference(service, "CommandOp", f"{base_node_id}.CommandOp")
-        self._add_opcua_reference(service, "StateCur", f"{base_node_id}.StateCur")
-        self._add_opcua_reference(service, "ProcedureCur", f"{base_node_id}.ProcedureCur")
-        self._add_opcua_reference(service, "ProcedureReq", f"{base_node_id}.ProcedureReq")
+        self._add_opcua_reference(
+            service,
+            "CommandOp",
+            self._node_ids.expanded_node_id(f"{base_node_path}.CommandOp"),
+        )
+        self._add_opcua_reference(
+            service,
+            "StateCur",
+            self._node_ids.expanded_node_id(f"{base_node_path}.StateCur"),
+        )
+        self._add_opcua_reference(
+            service,
+            "ProcedureCur",
+            self._node_ids.expanded_node_id(f"{base_node_path}.ProcedureCur"),
+        )
+        self._add_opcua_reference(
+            service,
+            "ProcedureReq",
+            self._node_ids.expanded_node_id(f"{base_node_path}.ProcedureReq"),
+        )
 
         # Add procedures
         if config.procedures:
@@ -364,7 +385,12 @@ class MTPManifestGenerator:
                     },
                 )
                 self._add_attribute(proc_elem, "ProcedureId", str(proc.id), "xs:unsignedInt")
-                self._add_attribute(proc_elem, "IsDefault", str(proc.is_default).lower(), "xs:boolean")
+                self._add_attribute(
+                    proc_elem,
+                    "IsDefault",
+                    str(proc.is_default).lower(),
+                    "xs:boolean",
+                )
 
         # Add parameters
         if config.parameters:
@@ -387,7 +413,12 @@ class MTPManifestGenerator:
                     },
                 )
                 self._add_attribute(param_elem, "DataAssembly", param.data_assembly, "xs:string")
-                self._add_attribute(param_elem, "Required", str(param.required).lower(), "xs:boolean")
+                self._add_attribute(
+                    param_elem,
+                    "Required",
+                    str(param.required).lower(),
+                    "xs:boolean",
+                )
 
     def _add_attribute(
         self, parent: ET.Element, name: str, value: str, datatype: str
@@ -436,23 +467,23 @@ Generator: MTP Gateway
         matches the server's address space.
         """
         node_ids: list[str] = []
-        base = f"ns=2;s=PEA_{self._pea_name}"
+        base = f"PEA_{self._pea_name}"
 
         # Data assembly nodes
         for da in self._config.mtp.data_assemblies:
             da_base = f"{base}.DataAssemblies.{da.name}"
             for attr_name in da.bindings.keys():
-                node_ids.append(f"{da_base}.{attr_name}")
+                node_ids.append(self._node_ids.expanded_node_id(f"{da_base}.{attr_name}"))
 
         # Service nodes
         for service in self._config.mtp.services:
             svc_base = f"{base}.Services.{service.name}"
             node_ids.extend(
                 [
-                    f"{svc_base}.CommandOp",
-                    f"{svc_base}.StateCur",
-                    f"{svc_base}.ProcedureCur",
-                    f"{svc_base}.ProcedureReq",
+                    self._node_ids.expanded_node_id(f"{svc_base}.CommandOp"),
+                    self._node_ids.expanded_node_id(f"{svc_base}.StateCur"),
+                    self._node_ids.expanded_node_id(f"{svc_base}.ProcedureCur"),
+                    self._node_ids.expanded_node_id(f"{svc_base}.ProcedureReq"),
                 ]
             )
 

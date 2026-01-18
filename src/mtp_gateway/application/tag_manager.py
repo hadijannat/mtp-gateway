@@ -8,6 +8,7 @@ on-demand reads, with event-driven updates for OPC UA subscriptions.
 from __future__ import annotations
 
 import asyncio
+import inspect
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -123,6 +124,8 @@ class TagManager:
                     scale=scale,
                     unit=config.unit,
                     description=config.description,
+                    byte_order=config.byte_order.value,
+                    word_order=config.word_order.value,
                 )
 
                 tags.append(tag_def)
@@ -198,13 +201,20 @@ class TagManager:
         while self._running:
             try:
                 # Read all tags for this connector
-                values = await connector.read_tags(group.addresses)
+                read_tag_values = getattr(connector, "read_tag_values", None)
+                if read_tag_values and inspect.iscoroutinefunction(read_tag_values):
+                    values_by_tag = await read_tag_values(group.tags)
+                else:
+                    values_by_addr = await connector.read_tags(group.addresses)
+                    values_by_tag = {
+                        tag_def.name: values_by_addr.get(tag_def.address)
+                        for tag_def in group.tags
+                    }
 
                 # Update tag states
                 for tag_def in group.tags:
-                    addr = tag_def.address
-                    if addr in values:
-                        tag_value = values[addr]
+                    tag_value = values_by_tag.get(tag_def.name)
+                    if tag_value is not None:
 
                         # Apply scaling if configured
                         if tag_def.scale and isinstance(tag_value.value, (int, float)):
@@ -317,9 +327,15 @@ class TagManager:
             return None
 
         # Read from connector
-        values = await connector.read_tags([tag_def.address])
-        if tag_def.address in values:
-            tag_value = values[tag_def.address]
+        read_tag_values = getattr(connector, "read_tag_values", None)
+        if read_tag_values and inspect.iscoroutinefunction(read_tag_values):
+            values = await read_tag_values([tag_def])
+            tag_value = values.get(tag_def.name)
+        else:
+            values = await connector.read_tags([tag_def.address])
+            tag_value = values.get(tag_def.address)
+
+        if tag_value is not None:
 
             # Apply scaling
             if tag_def.scale and isinstance(tag_value.value, (int, float)):
@@ -386,8 +402,25 @@ class TagManager:
         if tag_def.scale and isinstance(value, (int, float)):
             write_value = tag_def.reverse_scale(value)
 
+        # Coerce to expected type
+        try:
+            expected_type = tag_def.datatype.python_type()
+            write_value = expected_type(write_value)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Failed to coerce write value",
+                tag=name,
+                expected_type=tag_def.datatype.value,
+                value=write_value,
+            )
+            return False
+
         # Write to connector
-        success = await connector.write_tag(tag_def.address, write_value)
+        write_tag_value = getattr(connector, "write_tag_value", None)
+        if write_tag_value and inspect.iscoroutinefunction(write_tag_value):
+            success = await write_tag_value(tag_def, write_value)
+        else:
+            success = await connector.write_tag(tag_def.address, write_value)
         if success:
             state.write_count += 1
             # Read back the value to confirm

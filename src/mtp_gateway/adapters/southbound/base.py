@@ -19,7 +19,7 @@ import structlog
 
 if TYPE_CHECKING:
     from mtp_gateway.config.schema import ConnectorConfig
-    from mtp_gateway.domain.model.tags import TagValue
+    from mtp_gateway.domain.model.tags import TagDefinition, TagValue
 
 logger = structlog.get_logger(__name__)
 
@@ -105,6 +105,13 @@ class ConnectorPort(Protocol):
         """
         ...
 
+    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, TagValue]:
+        """Read multiple tags with datatype metadata.
+
+        Returns a mapping of tag name to TagValue.
+        """
+        ...
+
     async def write_tag(self, address: str, value: Any) -> bool:
         """Write a single value to the PLC.
 
@@ -119,6 +126,10 @@ class ConnectorPort(Protocol):
             ConnectionError: If communication fails
             ValueError: If value type is invalid
         """
+        ...
+
+    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+        """Write a value to a tag using its definition metadata."""
         ...
 
     def health_status(self) -> ConnectorHealth:
@@ -258,6 +269,23 @@ class BaseConnector(ABC):
                 for addr in addresses
             }
 
+    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, TagValue]:
+        """Read tags using their definitions.
+
+        Default implementation maps TagDefinition -> address and delegates
+        to read_tags(). Connectors may override for protocol-specific decoding.
+        """
+        from mtp_gateway.domain.model.tags import TagValue
+
+        if not tags:
+            return {}
+
+        values_by_address = await self.read_tags([tag.address for tag in tags])
+        return {
+            tag.name: values_by_address.get(tag.address, TagValue.bad_no_comm())
+            for tag in tags
+        }
+
     async def write_tag(self, address: str, value: Any) -> bool:
         """Write with error handling."""
         self._health.total_writes += 1
@@ -276,6 +304,10 @@ class BaseConnector(ABC):
                 error=str(e),
             )
             return False
+
+    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+        """Write a tag using its definition metadata."""
+        return await self.write_tag(tag.address, value)
 
     async def reconnect(self) -> bool:
         """Attempt reconnection with backoff."""

@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from mtp_gateway.adapters.northbound.manifest.generator import MTPManifestGenerator
-from mtp_gateway.adapters.northbound.opcua.nodes import MTPNodeBuilder
+from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
 from mtp_gateway.config.schema import (
     DataAssemblyConfig,
     DataTypeConfig,
@@ -91,21 +91,25 @@ class TestManifestServerConsistency:
         # Build server node IDs (simulating what the server would create)
         # In a real test, we'd start the server and query it
         pea_name = sample_config.gateway.name
+        node_ids = NodeIdStrategy(
+            namespace_uri=sample_config.opcua.namespace_uri,
+            namespace_idx=0,
+        )
 
         # Build expected server nodes from config
         server_node_ids: set[str] = set()
 
         for da in sample_config.mtp.data_assemblies:
-            base = f"ns=2;s=PEA_{pea_name}.DataAssemblies.{da.name}"
+            base = f"PEA_{pea_name}.DataAssemblies.{da.name}"
             for attr_name in da.bindings.keys():
-                server_node_ids.add(f"{base}.{attr_name}")
+                server_node_ids.add(node_ids.expanded_node_id(f"{base}.{attr_name}"))
 
         for service in sample_config.mtp.services:
-            base = f"ns=2;s=PEA_{pea_name}.Services.{service.name}"
-            server_node_ids.add(f"{base}.CommandOp")
-            server_node_ids.add(f"{base}.StateCur")
-            server_node_ids.add(f"{base}.ProcedureCur")
-            server_node_ids.add(f"{base}.ProcedureReq")
+            base = f"PEA_{pea_name}.Services.{service.name}"
+            server_node_ids.add(node_ids.expanded_node_id(f"{base}.CommandOp"))
+            server_node_ids.add(node_ids.expanded_node_id(f"{base}.StateCur"))
+            server_node_ids.add(node_ids.expanded_node_id(f"{base}.ProcedureCur"))
+            server_node_ids.add(node_ids.expanded_node_id(f"{base}.ProcedureReq"))
 
         # Check all manifest nodes exist in server
         for node_id in manifest_node_ids:
@@ -119,17 +123,21 @@ class TestManifestServerConsistency:
         manifest_node_ids = generator.get_all_node_ids()
 
         pea_name = sample_config.gateway.name
+        node_ids = NodeIdStrategy(
+            namespace_uri=sample_config.opcua.namespace_uri,
+            namespace_idx=0,
+        )
 
         # Expected service nodes
         expected_service_nodes = []
         for service in sample_config.mtp.services:
-            base = f"ns=2;s=PEA_{pea_name}.Services.{service.name}"
+            base = f"PEA_{pea_name}.Services.{service.name}"
             expected_service_nodes.extend(
                 [
-                    f"{base}.CommandOp",
-                    f"{base}.StateCur",
-                    f"{base}.ProcedureCur",
-                    f"{base}.ProcedureReq",
+                    node_ids.expanded_node_id(f"{base}.CommandOp"),
+                    node_ids.expanded_node_id(f"{base}.StateCur"),
+                    node_ids.expanded_node_id(f"{base}.ProcedureCur"),
+                    node_ids.expanded_node_id(f"{base}.ProcedureReq"),
                 ]
             )
 
@@ -144,8 +152,7 @@ class TestManifestServerConsistency:
 
         for node_id in manifest_node_ids:
             # Node IDs should start with namespace identifier
-            assert node_id.startswith("ns="), f"Invalid node ID format: {node_id}"
-            # Should contain string identifier
+            assert node_id.startswith("nsu="), f"Invalid node ID format: {node_id}"
             assert ";s=" in node_id, f"Node ID missing string identifier: {node_id}"
 
     def test_no_duplicate_node_ids(self, sample_config: GatewayConfig) -> None:

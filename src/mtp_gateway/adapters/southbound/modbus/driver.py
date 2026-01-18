@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import struct
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -144,31 +145,31 @@ def parse_modbus_address(address_str: str) -> ParsedAddress:
 def decode_registers(
     registers: list[int],
     datatype: str,
-    byte_order: str = ">",  # Big-endian default for Modbus
+    *,
+    byte_order: str = "big",
+    word_order: str = "big",
 ) -> float | int | bool:
     """Decode Modbus registers to Python value.
 
     Args:
         registers: List of 16-bit register values
         datatype: Target data type (int16, uint16, int32, float32, etc.)
-        byte_order: Byte order ('>' big-endian, '<' little-endian)
+        byte_order: Byte order within registers ("big" or "little")
+        word_order: Word order across registers ("big" or "little")
 
     Returns:
         Decoded Python value
     """
-    # Pack registers into bytes (big-endian within each register)
-    raw_bytes = b"".join(r.to_bytes(2, "big") for r in registers)
-
     format_map = {
         "bool": (1, "?"),
-        "int16": (1, f"{byte_order}h"),
-        "uint16": (1, f"{byte_order}H"),
-        "int32": (2, f"{byte_order}i"),
-        "uint32": (2, f"{byte_order}I"),
-        "int64": (4, f"{byte_order}q"),
-        "uint64": (4, f"{byte_order}Q"),
-        "float32": (2, f"{byte_order}f"),
-        "float64": (4, f"{byte_order}d"),
+        "int16": (1, "h"),
+        "uint16": (1, "H"),
+        "int32": (2, "i"),
+        "uint32": (2, "I"),
+        "int64": (4, "q"),
+        "uint64": (4, "Q"),
+        "float32": (2, "f"),
+        "float64": (4, "d"),
     }
 
     if datatype not in format_map:
@@ -176,12 +177,31 @@ def decode_registers(
 
     expected_regs, fmt = format_map[datatype]
     if len(registers) < expected_regs:
-        raise ValueError(f"Not enough registers for {datatype}: got {len(registers)}, need {expected_regs}")
+        raise ValueError(
+            f"Not enough registers for {datatype}: got {len(registers)}, need {expected_regs}"
+        )
 
-    return struct.unpack(fmt, raw_bytes[: expected_regs * 2])[0]
+    regs = registers[:expected_regs]
+    if word_order == "little" and expected_regs > 1:
+        regs = list(reversed(regs))
+
+    raw_bytes = b"".join(r.to_bytes(2, "big") for r in regs)
+    if byte_order == "little":
+        raw_bytes = b"".join(raw_bytes[i : i + 2][::-1] for i in range(0, len(raw_bytes), 2))
+
+    if datatype == "bool":
+        return bool(regs[0] & 0x01)
+
+    return struct.unpack(f">{fmt}", raw_bytes[: expected_regs * 2])[0]
 
 
-def encode_value(value: float | int | bool, datatype: str, byte_order: str = ">") -> list[int]:
+def encode_value(
+    value: float | int | bool,
+    datatype: str,
+    *,
+    byte_order: str = "big",
+    word_order: str = "big",
+) -> list[int]:
     """Encode Python value to Modbus registers.
 
     Args:
@@ -193,25 +213,34 @@ def encode_value(value: float | int | bool, datatype: str, byte_order: str = ">"
         List of 16-bit register values
     """
     format_map = {
-        "bool": f"{byte_order}H",
-        "int16": f"{byte_order}h",
-        "uint16": f"{byte_order}H",
-        "int32": f"{byte_order}i",
-        "uint32": f"{byte_order}I",
-        "int64": f"{byte_order}q",
-        "uint64": f"{byte_order}Q",
-        "float32": f"{byte_order}f",
-        "float64": f"{byte_order}d",
+        "bool": "H",
+        "int16": "h",
+        "uint16": "H",
+        "int32": "i",
+        "uint32": "I",
+        "int64": "q",
+        "uint64": "Q",
+        "float32": "f",
+        "float64": "d",
     }
 
     if datatype not in format_map:
         raise ValueError(f"Unsupported data type: {datatype}")
 
     fmt = format_map[datatype]
-    raw_bytes = struct.pack(fmt, value)
+    raw_bytes = struct.pack(f">{fmt}", value)
 
-    # Convert bytes back to 16-bit registers
-    return [int.from_bytes(raw_bytes[i : i + 2], "big") for i in range(0, len(raw_bytes), 2)]
+    if datatype == "bool":
+        raw_bytes = raw_bytes[:2]
+
+    # Split into 16-bit words
+    words = [raw_bytes[i : i + 2] for i in range(0, len(raw_bytes), 2)]
+    if byte_order == "little":
+        words = [word[::-1] for word in words]
+    if word_order == "little" and len(words) > 1:
+        words = list(reversed(words))
+
+    return [int.from_bytes(word, "big") for word in words]
 
 
 def get_register_count(datatype: str) -> int:
@@ -292,7 +321,70 @@ class ModbusTCPConnector(BaseConnector):
 
         return results
 
-    async def _read_single(self, parsed: ParsedAddress, datatype: str = "uint16") -> Any:
+    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, "TagValue"]:
+        """Read Modbus tags using datatype metadata."""
+        from mtp_gateway.domain.model.tags import Quality, TagValue
+
+        if not tags:
+            return {}
+
+        self._health.total_reads += len(tags)
+
+        if not self._client:
+            now = datetime.now(timezone.utc)
+            self._health.record_error("Not connected")
+            return {
+                tag.name: TagValue(
+                    value=0,
+                    timestamp=now,
+                    quality=Quality.BAD_NO_COMMUNICATION,
+                )
+                for tag in tags
+            }
+
+        results: dict[str, TagValue] = {}
+        now = datetime.now(timezone.utc)
+
+        for tag in tags:
+            try:
+                parsed = parse_modbus_address(tag.address)
+                value = await self._read_single(
+                    parsed,
+                    datatype=tag.datatype.value,
+                    byte_order=tag.byte_order,
+                    word_order=tag.word_order,
+                )
+                results[tag.name] = TagValue(
+                    value=value,
+                    timestamp=now,
+                    quality=Quality.GOOD,
+                )
+                self._health.record_success()
+            except ValueError as e:
+                self._health.record_error(str(e))
+                results[tag.name] = TagValue(
+                    value=0,
+                    timestamp=now,
+                    quality=Quality.BAD_CONFIG_ERROR,
+                )
+            except Exception as e:
+                self._health.record_error(str(e))
+                results[tag.name] = TagValue(
+                    value=0,
+                    timestamp=now,
+                    quality=Quality.BAD_NO_COMMUNICATION,
+                )
+
+        return results
+
+    async def _read_single(
+        self,
+        parsed: ParsedAddress,
+        datatype: str = "uint16",
+        *,
+        byte_order: str = "big",
+        word_order: str = "big",
+    ) -> Any:
         """Read a single Modbus address."""
         if not self._client:
             raise ConnectionError("Not connected")
@@ -327,7 +419,14 @@ class ModbusTCPConnector(BaseConnector):
             )
             if isinstance(response, ExceptionResponse):
                 raise ModbusException(f"Modbus exception: {response}")
-            return decode_registers(response.registers, datatype)
+            if parsed.bit_offset is not None:
+                return bool((response.registers[0] >> parsed.bit_offset) & 0x01)
+            return decode_registers(
+                response.registers,
+                datatype,
+                byte_order=byte_order,
+                word_order=word_order,
+            )
 
         elif parsed.register_type == ModbusRegisterType.HOLDING_REGISTER:
             response = await self._client.read_holding_registers(
@@ -337,7 +436,14 @@ class ModbusTCPConnector(BaseConnector):
             )
             if isinstance(response, ExceptionResponse):
                 raise ModbusException(f"Modbus exception: {response}")
-            return decode_registers(response.registers, datatype)
+            if parsed.bit_offset is not None:
+                return bool((response.registers[0] >> parsed.bit_offset) & 0x01)
+            return decode_registers(
+                response.registers,
+                datatype,
+                byte_order=byte_order,
+                word_order=word_order,
+            )
 
         raise ValueError(f"Unknown register type: {parsed.register_type}")
 
@@ -382,6 +488,63 @@ class ModbusTCPConnector(BaseConnector):
 
         if isinstance(response, ExceptionResponse):
             raise ModbusException(f"Write failed: {response}")
+
+    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+        """Write a Modbus tag using datatype metadata."""
+        self._health.total_writes += 1
+
+        if not self._client:
+            self._health.record_error("Not connected")
+            return False
+
+        try:
+            parsed = parse_modbus_address(tag.address)
+            if parsed.register_type == ModbusRegisterType.COIL:
+                response = await self._client.write_coil(
+                    address=parsed.address,
+                    value=bool(value),
+                    slave=self._unit_id,
+                )
+            elif parsed.register_type == ModbusRegisterType.HOLDING_REGISTER:
+                if parsed.bit_offset is not None:
+                    raise ValueError("Bit-level writes to registers are not supported")
+
+                registers = encode_value(
+                    value,
+                    tag.datatype.value,
+                    byte_order=tag.byte_order,
+                    word_order=tag.word_order,
+                )
+
+                if len(registers) == 1:
+                    response = await self._client.write_register(
+                        address=parsed.address,
+                        value=registers[0],
+                        slave=self._unit_id,
+                    )
+                else:
+                    response = await self._client.write_registers(
+                        address=parsed.address,
+                        values=registers,
+                        slave=self._unit_id,
+                    )
+            else:
+                raise ValueError(f"Cannot write to {parsed.register_type.value}")
+
+            if isinstance(response, ExceptionResponse):
+                raise ModbusException(f"Write failed: {response}")
+
+            self._health.record_success()
+            return True
+        except Exception as e:
+            self._health.record_error(str(e))
+            logger.error(
+                "Write failed",
+                connector=self.name,
+                address=tag.address,
+                error=str(e),
+            )
+            return False
 
 
 class ModbusRTUConnector(BaseConnector):
@@ -446,7 +609,70 @@ class ModbusRTUConnector(BaseConnector):
 
         return results
 
-    async def _read_single_rtu(self, parsed: ParsedAddress, datatype: str = "uint16") -> Any:
+    async def read_tag_values(self, tags: list["TagDefinition"]) -> dict[str, "TagValue"]:
+        """Read Modbus RTU tags using datatype metadata."""
+        from mtp_gateway.domain.model.tags import Quality, TagValue
+
+        if not tags:
+            return {}
+
+        self._health.total_reads += len(tags)
+
+        if not self._client:
+            now = datetime.now(timezone.utc)
+            self._health.record_error("Not connected")
+            return {
+                tag.name: TagValue(
+                    value=0,
+                    timestamp=now,
+                    quality=Quality.BAD_NO_COMMUNICATION,
+                )
+                for tag in tags
+            }
+
+        results: dict[str, TagValue] = {}
+        now = datetime.now(timezone.utc)
+
+        for tag in tags:
+            try:
+                parsed = parse_modbus_address(tag.address)
+                value = await self._read_single_rtu(
+                    parsed,
+                    datatype=tag.datatype.value,
+                    byte_order=tag.byte_order,
+                    word_order=tag.word_order,
+                )
+                results[tag.name] = TagValue(
+                    value=value,
+                    timestamp=now,
+                    quality=Quality.GOOD,
+                )
+                self._health.record_success()
+            except ValueError as e:
+                self._health.record_error(str(e))
+                results[tag.name] = TagValue(
+                    value=0,
+                    timestamp=now,
+                    quality=Quality.BAD_CONFIG_ERROR,
+                )
+            except Exception as e:
+                self._health.record_error(str(e))
+                results[tag.name] = TagValue(
+                    value=0,
+                    timestamp=now,
+                    quality=Quality.BAD_NO_COMMUNICATION,
+                )
+
+        return results
+
+    async def _read_single_rtu(
+        self,
+        parsed: ParsedAddress,
+        datatype: str = "uint16",
+        *,
+        byte_order: str = "big",
+        word_order: str = "big",
+    ) -> Any:
         """Read a single Modbus RTU address."""
         if not self._client:
             raise ConnectionError("Not connected")
@@ -481,7 +707,14 @@ class ModbusRTUConnector(BaseConnector):
             )
             if isinstance(response, ExceptionResponse):
                 raise ModbusException(f"Modbus exception: {response}")
-            return decode_registers(response.registers, datatype)
+            if parsed.bit_offset is not None:
+                return bool((response.registers[0] >> parsed.bit_offset) & 0x01)
+            return decode_registers(
+                response.registers,
+                datatype,
+                byte_order=byte_order,
+                word_order=word_order,
+            )
 
         elif parsed.register_type == ModbusRegisterType.HOLDING_REGISTER:
             response = await self._client.read_holding_registers(
@@ -491,7 +724,14 @@ class ModbusRTUConnector(BaseConnector):
             )
             if isinstance(response, ExceptionResponse):
                 raise ModbusException(f"Modbus exception: {response}")
-            return decode_registers(response.registers, datatype)
+            if parsed.bit_offset is not None:
+                return bool((response.registers[0] >> parsed.bit_offset) & 0x01)
+            return decode_registers(
+                response.registers,
+                datatype,
+                byte_order=byte_order,
+                word_order=word_order,
+            )
 
         raise ValueError(f"Unknown register type: {parsed.register_type}")
 
@@ -535,3 +775,60 @@ class ModbusRTUConnector(BaseConnector):
 
         if isinstance(response, ExceptionResponse):
             raise ModbusException(f"Write failed: {response}")
+
+    async def write_tag_value(self, tag: "TagDefinition", value: Any) -> bool:
+        """Write a Modbus RTU tag using datatype metadata."""
+        self._health.total_writes += 1
+
+        if not self._client:
+            self._health.record_error("Not connected")
+            return False
+
+        try:
+            parsed = parse_modbus_address(tag.address)
+            if parsed.register_type == ModbusRegisterType.COIL:
+                response = await self._client.write_coil(
+                    address=parsed.address,
+                    value=bool(value),
+                    slave=self._unit_id,
+                )
+            elif parsed.register_type == ModbusRegisterType.HOLDING_REGISTER:
+                if parsed.bit_offset is not None:
+                    raise ValueError("Bit-level writes to registers are not supported")
+
+                registers = encode_value(
+                    value,
+                    tag.datatype.value,
+                    byte_order=tag.byte_order,
+                    word_order=tag.word_order,
+                )
+
+                if len(registers) == 1:
+                    response = await self._client.write_register(
+                        address=parsed.address,
+                        value=registers[0],
+                        slave=self._unit_id,
+                    )
+                else:
+                    response = await self._client.write_registers(
+                        address=parsed.address,
+                        values=registers,
+                        slave=self._unit_id,
+                    )
+            else:
+                raise ValueError(f"Cannot write to {parsed.register_type.value}")
+
+            if isinstance(response, ExceptionResponse):
+                raise ModbusException(f"Write failed: {response}")
+
+            self._health.record_success()
+            return True
+        except Exception as e:
+            self._health.record_error(str(e))
+            logger.error(
+                "Write failed",
+                connector=self.name,
+                address=tag.address,
+                error=str(e),
+            )
+            return False

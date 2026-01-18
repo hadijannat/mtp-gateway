@@ -47,6 +47,7 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "pytest-timeout>=2.2.0",
+    "jsonschema<4.18",
     "ruff>=0.1.0",
     "mypy>=1.7.0",
     "pre-commit>=3.5.0",
@@ -146,6 +147,8 @@ addopts = [
     "-q",
     "--strict-markers",
     "--strict-config",
+    "-p",
+    "no:schemathesis",
 ]
 markers = [
     "unit: Unit tests (no external dependencies)",
@@ -157,6 +160,7 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:asyncua.*",
     "ignore::DeprecationWarning:dateutil.*",
+    "ignore::DeprecationWarning:jsonschema.*",
 ]
 
 # Coverage configuration
