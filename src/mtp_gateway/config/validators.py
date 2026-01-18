@@ -137,14 +137,10 @@ class S7AddressValidator(AddressValidator):
     """
 
     # Pattern for DB addresses: DB<num>.DB<type><offset>[.bit]
-    _DB_PATTERN = re.compile(
-        r"^DB(\d+)\.DB([XBWD])(\d+)(?:\.(\d))?$", re.IGNORECASE
-    )
+    _DB_PATTERN = re.compile(r"^DB(\d+)\.DB([XBWD])(\d+)(?:\.(\d))?$", re.IGNORECASE)
 
     # Pattern for I/O/M addresses: <area>[<type>]<offset>[.bit]
-    _AREA_PATTERN = re.compile(
-        r"^([IQMT])([BWD])?(\d+)(?:\.(\d))?$", re.IGNORECASE
-    )
+    _AREA_PATTERN = re.compile(r"^([IQMT])([BWD])?(\d+)(?:\.(\d))?$", re.IGNORECASE)
 
     # Counter pattern
     _COUNTER_PATTERN = re.compile(r"^C(\d+)$", re.IGNORECASE)
@@ -287,9 +283,7 @@ class EIPAddressValidator(AddressValidator):
         address = address.strip()
 
         if not address:
-            return ValidationResult(
-                valid=False, error="Tag path cannot be empty."
-            )
+            return ValidationResult(valid=False, error="Tag path cannot be empty.")
 
         if not self._TAG_PATTERN.match(address):
             return ValidationResult(
@@ -343,9 +337,7 @@ class OPCUANodeIdValidator(AddressValidator):
         address = address.strip()
 
         if not address:
-            return ValidationResult(
-                valid=False, error="NodeId cannot be empty."
-            )
+            return ValidationResult(valid=False, error="NodeId cannot be empty.")
 
         # Check each pattern
         patterns = [

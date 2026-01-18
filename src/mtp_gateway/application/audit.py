@@ -24,16 +24,18 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 # Keys that should not be logged (contain sensitive values)
-_SENSITIVE_KEYS = frozenset({
-    "password",
-    "secret",
-    "token",
-    "key",
-    "api_key",
-    "apikey",
-    "credential",
-    "private",
-})
+_SENSITIVE_KEYS = frozenset(
+    {
+        "password",
+        "secret",
+        "token",
+        "key",
+        "api_key",
+        "apikey",
+        "credential",
+        "private",
+    }
+)
 
 
 def _is_sensitive(key: str) -> bool:

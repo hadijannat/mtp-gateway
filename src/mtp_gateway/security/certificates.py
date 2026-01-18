@@ -89,11 +89,13 @@ class CertificateManager:
         )
 
         # Build subject
-        subject = x509.Name([
-            x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization),
-            x509.NameAttribute(NameOID.COMMON_NAME, common_name),
-        ])
+        subject = x509.Name(
+            [
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization),
+                x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+            ]
+        )
 
         # Build certificate
         now = datetime.now(UTC)
@@ -291,8 +293,7 @@ class CertificateManager:
         return {
             "subject": subject_dict,
             "issuer": {
-                getattr(attr.oid, "_name", str(attr.oid)): str(attr.value)
-                for attr in cert.issuer
+                getattr(attr.oid, "_name", str(attr.oid)): str(attr.value) for attr in cert.issuer
             },
             "serial_number": cert.serial_number,
             "not_valid_before": cert.not_valid_before_utc,

@@ -21,17 +21,19 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 # Keys that should be masked in logs
-SENSITIVE_KEYS = frozenset({
-    "password",
-    "secret",
-    "token",
-    "key",
-    "api_key",
-    "apikey",
-    "credential",
-    "auth",
-    "private",
-})
+SENSITIVE_KEYS = frozenset(
+    {
+        "password",
+        "secret",
+        "token",
+        "key",
+        "api_key",
+        "apikey",
+        "credential",
+        "auth",
+        "private",
+    }
+)
 
 
 def is_sensitive_key(key: str) -> bool:
@@ -247,13 +249,10 @@ class VaultSecretProvider(BaseSecretProvider):
                 import hvac as hvac_module  # noqa: PLC0415
             except ImportError as e:
                 raise RuntimeError(
-                    "hvac package required for Vault support. "
-                    "Install with: pip install hvac"
+                    "hvac package required for Vault support. Install with: pip install hvac"
                 ) from e
 
-            self._client = hvac_module.Client(
-                url=self._vault_url, token=self._vault_token
-            )
+            self._client = hvac_module.Client(url=self._vault_url, token=self._vault_token)
         return self._client  # type: ignore[return-value]
 
     async def get_secret(self, key: str) -> str | None:
@@ -278,9 +277,7 @@ class VaultSecretProvider(BaseSecretProvider):
             value = response.get("data", {}).get("data", {}).get("value")
 
             if value is not None:
-                masked = (
-                    mask_sensitive_value(value) if is_sensitive_key(key) else "[value]"
-                )
+                masked = mask_sensitive_value(value) if is_sensitive_key(key) else "[value]"
                 logger.debug(
                     "Secret retrieved from Vault",
                     key=key,

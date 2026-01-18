@@ -72,6 +72,7 @@ def main(
     """MTP Gateway CLI."""
     pass
 
+
 console = Console()
 
 

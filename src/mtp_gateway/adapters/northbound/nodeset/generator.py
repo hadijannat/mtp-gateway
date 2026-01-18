@@ -232,9 +232,7 @@ class NodeSetGenerator:
                 var_path = f"{da_path}.{attr_name}"
                 self._add_variable(root, var_path, attr_name, da_path, tag_config.datatype)
 
-    def _add_service(
-        self, root: ET.Element, pea_path: str, service_config: ServiceConfig
-    ) -> None:
+    def _add_service(self, root: ET.Element, pea_path: str, service_config: ServiceConfig) -> None:
         """Add a service and its state machine variables."""
         svc_path = f"{pea_path}.Services.{service_config.name}"
 
@@ -309,9 +307,7 @@ class NodeSetGenerator:
             self._indent_element(root)
 
         # Add XML declaration
-        return '<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(
-            root, encoding="unicode"
-        )
+        return '<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(root, encoding="unicode")
 
     def _indent_element(self, elem: ET.Element, level: int = 0) -> None:
         """Indent XML elements for readability."""

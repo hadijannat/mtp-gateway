@@ -75,9 +75,7 @@ class ThinProxy(ServiceProxy):
             )
 
         # Write command value to PLC
-        success = await self._tag_manager.write_tag(
-            self._config.command_op_tag, command.value
-        )
+        success = await self._tag_manager.write_tag(self._config.command_op_tag, command.value)
 
         if success:
             logger.debug(

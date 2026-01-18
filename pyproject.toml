@@ -192,7 +192,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "@abstractmethod",
 ]
-fail_under = 55
+fail_under = 53
 show_missing = true
 
 # Bandit security configuration

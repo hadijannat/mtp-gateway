@@ -216,9 +216,7 @@ class TestNodeSetGenerator:
 class TestNodeSetDeterminism:
     """Tests for deterministic NodeSet generation."""
 
-    def test_deterministic_generates_identical_output(
-        self, sample_config: GatewayConfig
-    ) -> None:
+    def test_deterministic_generates_identical_output(self, sample_config: GatewayConfig) -> None:
         """Deterministic mode should produce identical XML."""
         gen1 = NodeSetGenerator(sample_config, deterministic=True)
         gen2 = NodeSetGenerator(sample_config, deterministic=True)
@@ -228,9 +226,7 @@ class TestNodeSetDeterminism:
 
         assert xml1 == xml2
 
-    def test_same_generator_produces_identical_output(
-        self, sample_config: GatewayConfig
-    ) -> None:
+    def test_same_generator_produces_identical_output(self, sample_config: GatewayConfig) -> None:
         """Multiple generate() calls should produce identical XML."""
         generator = NodeSetGenerator(sample_config, deterministic=True)
 
@@ -239,9 +235,7 @@ class TestNodeSetDeterminism:
 
         assert xml1 == xml2
 
-    def test_non_deterministic_varies_timestamp(
-        self, sample_config: GatewayConfig
-    ) -> None:
+    def test_non_deterministic_varies_timestamp(self, sample_config: GatewayConfig) -> None:
         """Non-deterministic mode may have different timestamps."""
         # Note: This test is probabilistic but timestamps should differ
         # between calls in most cases
@@ -260,9 +254,7 @@ class TestNodeSetDeterminism:
 class TestNodeSetFileOutput:
     """Tests for file output functionality."""
 
-    def test_writes_to_file(
-        self, sample_config: GatewayConfig, tmp_path: Path
-    ) -> None:
+    def test_writes_to_file(self, sample_config: GatewayConfig, tmp_path: Path) -> None:
         """NodeSet should be writable to a file."""
         output_path = tmp_path / "nodeset.xml"
 
