@@ -9,10 +9,8 @@ Tests for:
 from __future__ import annotations
 
 import asyncio
-from collections import deque
-from datetime import UTC, datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -160,9 +158,7 @@ class TestHistoryRecorder:
 
         assert recorder.buffer_size == 1
 
-    def test_on_tag_change_respects_include_filter(
-        self, mock_tag_manager: MagicMock
-    ) -> None:
+    def test_on_tag_change_respects_include_filter(self, mock_tag_manager: MagicMock) -> None:
         """Should only record tags in include list."""
         config = HistoryConfig(include_tags={"allowed_tag"})
         recorder = HistoryRecorder(tag_manager=mock_tag_manager, config=config)
@@ -179,9 +175,7 @@ class TestHistoryRecorder:
         recorder._on_tag_change("other_tag", mock_value)
         assert recorder.buffer_size == 1
 
-    def test_on_tag_change_respects_exclude_filter(
-        self, mock_tag_manager: MagicMock
-    ) -> None:
+    def test_on_tag_change_respects_exclude_filter(self, mock_tag_manager: MagicMock) -> None:
         """Should skip tags in exclude list."""
         config = HistoryConfig(exclude_tags={"excluded_tag"})
         recorder = HistoryRecorder(tag_manager=mock_tag_manager, config=config)
@@ -271,9 +265,7 @@ class TestHistoryRecorderFlush:
         assert recorder.buffer_size == 0
 
     @pytest.mark.asyncio
-    async def test_flush_empty_buffer_is_noop(
-        self, mock_tag_manager: MagicMock
-    ) -> None:
+    async def test_flush_empty_buffer_is_noop(self, mock_tag_manager: MagicMock) -> None:
         """Should handle empty buffer gracefully."""
         recorder = HistoryRecorder(tag_manager=mock_tag_manager)
 
@@ -283,9 +275,7 @@ class TestHistoryRecorderFlush:
         assert recorder.buffer_size == 0
 
     @pytest.mark.asyncio
-    async def test_max_buffer_triggers_flush(
-        self, mock_tag_manager: MagicMock
-    ) -> None:
+    async def test_max_buffer_triggers_flush(self, mock_tag_manager: MagicMock) -> None:
         """Should trigger flush when buffer reaches max size."""
         config = HistoryConfig(max_buffer_size=3, flush_interval=60.0)
         recorder = HistoryRecorder(

@@ -252,10 +252,12 @@ class WebSocketManager:
             return False
 
         try:
-            await conn.websocket.send_json({
-                "type": message_type.value,
-                "payload": payload,
-            })
+            await conn.websocket.send_json(
+                {
+                    "type": message_type.value,
+                    "payload": payload,
+                }
+            )
             return True
         except Exception:
             logger.exception(
@@ -300,13 +302,20 @@ class WebSocketManager:
                     continue
 
                 # Apply filter if specified
-                if filter_key:
-                    if channel == Channel.TAGS and subscription.filter_tags:
-                        if filter_key not in subscription.filter_tags:
-                            continue
-                    elif channel == Channel.SERVICES and subscription.filter_services:
-                        if filter_key not in subscription.filter_services:
-                            continue
+                if (
+                    filter_key
+                    and channel == Channel.TAGS
+                    and subscription.filter_tags
+                    and filter_key not in subscription.filter_tags
+                ):
+                    continue
+                if (
+                    filter_key
+                    and channel == Channel.SERVICES
+                    and subscription.filter_services
+                    and filter_key not in subscription.filter_services
+                ):
+                    continue
 
                 try:
                     await conn.websocket.send_json(message)

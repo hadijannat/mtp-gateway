@@ -24,17 +24,14 @@ from mtp_gateway.adapters.northbound.webui.security.rbac import (
 )
 
 __all__ = [
-    # JWT
-    "TokenPayload",
-    "TokenService",
-    # Password
     "PasswordService",
-    "hash_password",
-    "verify_password",
-    # RBAC
     "Permission",
     "RBACService",
     "Role",
+    "TokenPayload",
+    "TokenService",
     "User",
     "get_permissions_for_role",
+    "hash_password",
+    "verify_password",
 ]

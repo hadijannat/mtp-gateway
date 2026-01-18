@@ -7,12 +7,15 @@ Uses batched inserts for efficient database operations.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import structlog
+
+from mtp_gateway.adapters.northbound.webui.database.repository import HistoryRepository
 
 if TYPE_CHECKING:
     from mtp_gateway.adapters.northbound.webui.database.connection import DatabasePool
@@ -55,8 +58,8 @@ class HistoryRecorder:
 
     def __init__(
         self,
-        tag_manager: "TagManager",
-        db_pool: "DatabasePool | None" = None,
+        tag_manager: TagManager,
+        db_pool: DatabasePool | None = None,
         config: HistoryConfig | None = None,
     ) -> None:
         """Initialize the history recorder.
@@ -77,6 +80,7 @@ class HistoryRecorder:
         # Running state
         self._running = False
         self._flush_task: asyncio.Task | None = None
+        self._background_tasks: set[asyncio.Task] = set()
 
         # Statistics
         self._records_written = 0
@@ -114,10 +118,8 @@ class HistoryRecorder:
         # Cancel flush task
         if self._flush_task:
             self._flush_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._flush_task
-            except asyncio.CancelledError:
-                pass
             self._flush_task = None
 
         # Final flush
@@ -130,7 +132,7 @@ class HistoryRecorder:
             total_flushes=self._flush_count,
         )
 
-    def _on_tag_change(self, tag_name: str, value: "TagValue") -> None:
+    def _on_tag_change(self, tag_name: str, value: TagValue) -> None:
         """Handle tag value changes from TagManager.
 
         This is called synchronously by TagManager, so we buffer
@@ -141,12 +143,10 @@ class HistoryRecorder:
             value: New tag value
         """
         # Check include/exclude filters
-        if self._config.include_tags:
-            if tag_name not in self._config.include_tags:
-                return
-        elif self._config.exclude_tags:
-            if tag_name in self._config.exclude_tags:
-                return
+        if self._config.include_tags and tag_name not in self._config.include_tags:
+            return
+        if self._config.exclude_tags and tag_name in self._config.exclude_tags:
+            return
 
         # Add to buffer (thread-safe append)
         record = (
@@ -159,7 +159,9 @@ class HistoryRecorder:
 
         # Check for forced flush
         if len(self._buffer) >= self._config.max_buffer_size:
-            asyncio.create_task(self._flush())
+            task = asyncio.create_task(self._flush())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
     async def _periodic_flush(self) -> None:
         """Periodically flush buffer to database."""
@@ -191,10 +193,6 @@ class HistoryRecorder:
         # Write to database
         if self._db_pool and self._db_pool.is_connected:
             try:
-                from mtp_gateway.adapters.northbound.webui.database.repository import (
-                    HistoryRepository,
-                )
-
                 repo = HistoryRepository(self._db_pool.pool)
                 count = await repo.insert_batch(records)
 

@@ -7,10 +7,14 @@ Integrates with TagManager subscriptions and broadcasts to WebSocket.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import structlog
+
+from mtp_gateway.adapters.northbound.webui.database.repository import AlarmRepository
+from mtp_gateway.adapters.northbound.webui.routers.alarms import auto_clear_alarm, raise_alarm
 
 if TYPE_CHECKING:
     from mtp_gateway.adapters.northbound.webui.database.connection import DatabasePool
@@ -75,10 +79,10 @@ class AlarmDetector:
 
     def __init__(
         self,
-        config: "GatewayConfig",
-        tag_manager: "TagManager",
-        db_pool: "DatabasePool | None" = None,
-        broadcaster: "EventBroadcaster | None" = None,
+        config: GatewayConfig,
+        tag_manager: TagManager,
+        db_pool: DatabasePool | None = None,
+        broadcaster: EventBroadcaster | None = None,
     ) -> None:
         """Initialize the alarm detector.
 
@@ -95,6 +99,9 @@ class AlarmDetector:
 
         # Monitored assemblies indexed by tag name
         self._monitors: dict[str, MonitorConfig] = {}
+
+        # Background tasks for tag change processing
+        self._background_tasks: set[asyncio.Task] = set()
 
         # Running state
         self._running = False
@@ -115,7 +122,7 @@ class AlarmDetector:
             count=len(self._monitors),
         )
 
-    def _add_ana_mon(self, da_config: "DataAssemblyConfig") -> None:
+    def _add_ana_mon(self, da_config: DataAssemblyConfig) -> None:
         """Add an analog monitor to detection."""
         # Get tag name from bindings
         tag_name = da_config.bindings.get("V")
@@ -146,7 +153,7 @@ class AlarmDetector:
             limits=(monitor.ll_limit, monitor.l_limit, monitor.h_limit, monitor.hh_limit),
         )
 
-    def _add_bin_mon(self, da_config: "DataAssemblyConfig") -> None:
+    def _add_bin_mon(self, da_config: DataAssemblyConfig) -> None:
         """Add a binary monitor to detection."""
         tag_name = da_config.bindings.get("V")
         if not tag_name:
@@ -203,16 +210,14 @@ class AlarmDetector:
         # Cancel periodic check
         if self._check_task:
             self._check_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._check_task
-            except asyncio.CancelledError:
-                pass
             self._check_task = None
 
         self._running = False
         logger.info("Alarm detector stopped")
 
-    def _on_tag_change(self, tag_name: str, value: "TagValue") -> None:
+    def _on_tag_change(self, tag_name: str, value: TagValue) -> None:
         """Handle tag value changes from TagManager.
 
         This is called synchronously by TagManager, so we schedule
@@ -227,12 +232,14 @@ class AlarmDetector:
             return
 
         # Schedule async processing
-        asyncio.create_task(self._process_value_change(monitor, value))
+        task = asyncio.create_task(self._process_value_change(monitor, value))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     async def _process_value_change(
         self,
         monitor: MonitorConfig,
-        value: "TagValue",
+        value: TagValue,
     ) -> None:
         """Process a tag value change and update alarm states.
 
@@ -248,7 +255,7 @@ class AlarmDetector:
     async def _check_ana_mon_alarms(
         self,
         monitor: MonitorConfig,
-        value: "TagValue",
+        value: TagValue,
     ) -> None:
         """Check analog monitor alarm conditions.
 
@@ -314,7 +321,7 @@ class AlarmDetector:
     async def _check_bin_mon_state(
         self,
         monitor: MonitorConfig,
-        value: "TagValue",
+        value: TagValue,
     ) -> None:
         """Check binary monitor state error condition.
 
@@ -396,14 +403,9 @@ class AlarmDetector:
             message: Alarm message
             value: Triggering value
         """
-        from mtp_gateway.adapters.northbound.webui.routers.alarms import raise_alarm
-
         # Get repository if database configured
         alarm_repo = None
         if self._db_pool and self._db_pool.is_connected:
-            from mtp_gateway.adapters.northbound.webui.database.repository import (
-                AlarmRepository,
-            )
             alarm_repo = AlarmRepository(self._db_pool.pool)
 
         db_id = await raise_alarm(
@@ -441,13 +443,8 @@ class AlarmDetector:
             alarm_id: Alarm identifier
             source: Alarm source
         """
-        from mtp_gateway.adapters.northbound.webui.routers.alarms import auto_clear_alarm
-
         alarm_repo = None
         if self._db_pool and self._db_pool.is_connected:
-            from mtp_gateway.adapters.northbound.webui.database.repository import (
-                AlarmRepository,
-            )
             alarm_repo = AlarmRepository(self._db_pool.pool)
 
         cleared = await auto_clear_alarm(
@@ -478,9 +475,6 @@ class AlarmDetector:
                 await asyncio.sleep(60)  # Check every minute
 
                 if self._db_pool and self._db_pool.is_connected:
-                    from mtp_gateway.adapters.northbound.webui.database.repository import (
-                        AlarmRepository,
-                    )
                     repo = AlarmRepository(self._db_pool.pool)
                     count = await repo.unshelve_expired()
                     if count > 0:

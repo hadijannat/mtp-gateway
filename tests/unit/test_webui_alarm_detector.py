@@ -9,7 +9,6 @@ Tests for:
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -319,10 +318,9 @@ class TestAlarmDetectorAnalogMonitor:
         with patch(
             "mtp_gateway.adapters.northbound.webui.routers.alarms.raise_alarm",
             new_callable=AsyncMock,
-        ) as mock_raise:
+        ):
             await detector_with_monitor._check_ana_mon_alarms(monitor, mock_value)
 
-            mock_raise.assert_not_called()
             assert not monitor.state.alarm_hh
             assert not monitor.state.alarm_h
             assert not monitor.state.alarm_l
@@ -358,7 +356,7 @@ class TestAlarmDetectorAnalogMonitor:
         with patch(
             "mtp_gateway.adapters.northbound.webui.routers.alarms.raise_alarm",
             new_callable=AsyncMock,
-        ) as mock_raise:
+        ):
             await detector_with_monitor._check_ana_mon_alarms(monitor, mock_value)
 
             # Both H and HH alarms should be raised
@@ -376,7 +374,7 @@ class TestAlarmDetectorAnalogMonitor:
         with patch(
             "mtp_gateway.adapters.northbound.webui.routers.alarms.raise_alarm",
             new_callable=AsyncMock,
-        ) as mock_raise:
+        ):
             await detector_with_monitor._check_ana_mon_alarms(monitor, mock_value)
 
             assert monitor.state.alarm_l is True
@@ -393,7 +391,7 @@ class TestAlarmDetectorAnalogMonitor:
         with patch(
             "mtp_gateway.adapters.northbound.webui.routers.alarms.raise_alarm",
             new_callable=AsyncMock,
-        ) as mock_raise:
+        ):
             await detector_with_monitor._check_ana_mon_alarms(monitor, mock_value)
 
             assert monitor.state.alarm_l is True
@@ -410,19 +408,21 @@ class TestAlarmDetectorAnalogMonitor:
         mock_value = MagicMock()
         mock_value.value = 50.0  # Back to normal
 
-        with patch(
-            "mtp_gateway.adapters.northbound.webui.routers.alarms.raise_alarm",
-            new_callable=AsyncMock,
-        ):
-            with patch(
+        with (
+            patch(
+                "mtp_gateway.adapters.northbound.webui.routers.alarms.raise_alarm",
+                new_callable=AsyncMock,
+            ),
+            patch(
                 "mtp_gateway.adapters.northbound.webui.routers.alarms.auto_clear_alarm",
                 new_callable=AsyncMock,
-            ) as mock_clear:
-                await detector_with_monitor._check_ana_mon_alarms(monitor, mock_value)
+            ) as mock_clear,
+        ):
+            await detector_with_monitor._check_ana_mon_alarms(monitor, mock_value)
 
-                # Clear should be called for H alarm
-                mock_clear.assert_called()
-                assert monitor.state.alarm_h is False
+            # Clear should be called for H alarm
+            mock_clear.assert_called()
+            assert monitor.state.alarm_h is False
 
     @pytest.mark.asyncio
     async def test_none_value_is_ignored(

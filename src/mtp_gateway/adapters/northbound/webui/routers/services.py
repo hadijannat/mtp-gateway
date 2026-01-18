@@ -23,6 +23,7 @@ from mtp_gateway.adapters.northbound.webui.schemas.services import (
     ServiceState,
 )
 from mtp_gateway.adapters.northbound.webui.security.rbac import Permission
+from mtp_gateway.domain.state_machine.packml import PackMLCommand
 
 logger = structlog.get_logger(__name__)
 
@@ -125,7 +126,7 @@ async def list_services(
 )
 async def get_service(
     service_name: str,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     service_manager: ServiceManagerDep,
 ) -> ServiceResponse:
     """Get a single service state.
@@ -223,9 +224,6 @@ async def send_command(
         )
 
     try:
-        # Import here to avoid circular imports
-        from mtp_gateway.domain.state_machine.packml import PackMLCommand
-
         command_enum = PackMLCommand[packml_command]
 
         # Send command

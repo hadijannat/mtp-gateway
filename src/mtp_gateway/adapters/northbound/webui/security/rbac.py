@@ -201,9 +201,7 @@ class RBACService:
             True if user has at least one of the permissions
         """
         permission_set = set(user_permissions)
-        required_set = {
-            p.value if isinstance(p, Permission) else p for p in required_permissions
-        }
+        required_set = {p.value if isinstance(p, Permission) else p for p in required_permissions}
 
         has_any = bool(permission_set & required_set)
 
@@ -230,9 +228,7 @@ class RBACService:
             True if user has all of the permissions
         """
         permission_set = set(user_permissions)
-        required_set = {
-            p.value if isinstance(p, Permission) else p for p in required_permissions
-        }
+        required_set = {p.value if isinstance(p, Permission) else p for p in required_permissions}
 
         has_all = required_set <= permission_set
 

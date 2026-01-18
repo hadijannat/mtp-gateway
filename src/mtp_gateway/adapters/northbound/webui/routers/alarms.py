@@ -6,12 +6,14 @@ Supports both database-backed and in-memory storage modes.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from itertools import count
 from typing import TYPE_CHECKING, Annotated
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from mtp_gateway.adapters.northbound.webui.database.repository import AlarmRepository
 from mtp_gateway.adapters.northbound.webui.dependencies import (
     CurrentUserDep,
     require_permission,
@@ -27,10 +29,7 @@ from mtp_gateway.adapters.northbound.webui.schemas.alarms import (
 from mtp_gateway.adapters.northbound.webui.security.rbac import Permission
 
 if TYPE_CHECKING:
-    from mtp_gateway.adapters.northbound.webui.database.repository import (
-        AlarmRecord,
-        AlarmRepository,
-    )
+    from mtp_gateway.adapters.northbound.webui.database.repository import AlarmRecord
 
 logger = structlog.get_logger(__name__)
 
@@ -68,7 +67,7 @@ _MOCK_ALARMS: dict[int, dict] = {
         "shelved_until": None,
     },
 }
-_NEXT_ALARM_ID = 3
+_ALARM_ID_COUNTER = count(start=3)
 
 
 def _format_alarm_response(alarm_data: dict) -> AlarmResponse:
@@ -89,7 +88,7 @@ def _format_alarm_response(alarm_data: dict) -> AlarmResponse:
     )
 
 
-def _format_alarm_record(record: "AlarmRecord") -> AlarmResponse:
+def _format_alarm_record(record: AlarmRecord) -> AlarmResponse:
     """Format AlarmRecord from database for API response."""
     return AlarmResponse(
         id=record.id,
@@ -107,19 +106,15 @@ def _format_alarm_record(record: "AlarmRecord") -> AlarmResponse:
     )
 
 
-def _get_alarm_repository(request: Request) -> "AlarmRepository | None":
+def _get_alarm_repository(request: Request) -> AlarmRepository | None:
     """Get alarm repository from app state if database is configured."""
     db_pool = getattr(request.app.state, "db_pool", None)
     if db_pool and db_pool.is_connected:
-        from mtp_gateway.adapters.northbound.webui.database.repository import (
-            AlarmRepository,
-        )
-
         return AlarmRepository(db_pool.pool)
     return None
 
 
-AlarmRepoDep = Annotated["AlarmRepository | None", Depends(_get_alarm_repository)]
+AlarmRepoDep = Annotated[AlarmRepository | None, Depends(_get_alarm_repository)]
 
 
 @router.get(
@@ -213,7 +208,7 @@ async def list_alarms(
 )
 async def get_alarm(
     alarm_id: int,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     alarm_repo: AlarmRepoDep,
 ) -> AlarmResponse:
     """Get a single alarm by ID.
@@ -462,8 +457,6 @@ async def shelve_alarm(
             )
 
         # Calculate shelve expiry
-        from datetime import timedelta
-
         shelved_until = datetime.now(UTC) + timedelta(minutes=request.duration_minutes)
         alarm_data["state"] = "shelved"
         alarm_data["shelved_until"] = shelved_until.isoformat()
@@ -483,7 +476,7 @@ async def shelve_alarm(
 
 
 async def raise_alarm(
-    alarm_repo: "AlarmRepository | None",
+    alarm_repo: AlarmRepository | None,
     alarm_id: str,
     source: str,
     priority: int,
@@ -505,8 +498,6 @@ async def raise_alarm(
     Returns:
         Created alarm database ID or None
     """
-    global _NEXT_ALARM_ID
-
     if alarm_repo:
         # Check if alarm already active for this source
         existing = await alarm_repo.find_active_alarm(alarm_id, source)
@@ -537,8 +528,7 @@ async def raise_alarm(
                 return alarm_data["id"]
 
         # Create new mock alarm
-        new_id = _NEXT_ALARM_ID
-        _NEXT_ALARM_ID += 1
+        new_id = next(_ALARM_ID_COUNTER)
         _MOCK_ALARMS[new_id] = {
             "id": new_id,
             "alarm_id": alarm_id,
@@ -563,7 +553,7 @@ async def raise_alarm(
 
 
 async def auto_clear_alarm(
-    alarm_repo: "AlarmRepository | None",
+    alarm_repo: AlarmRepository | None,
     alarm_id: str,
     source: str,
 ) -> bool:
@@ -583,7 +573,7 @@ async def auto_clear_alarm(
         record = await alarm_repo.auto_clear_if_condition_gone(alarm_id, source)
         return record is not None
     else:
-        for db_id, alarm_data in list(_MOCK_ALARMS.items()):
+        for _db_id, alarm_data in list(_MOCK_ALARMS.items()):
             if (
                 alarm_data["alarm_id"] == alarm_id
                 and alarm_data["source"] == source

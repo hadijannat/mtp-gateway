@@ -32,10 +32,7 @@ router = APIRouter()
 
 def _quality_to_enum(quality: Any) -> TagQuality:
     """Convert tag quality to enum."""
-    if hasattr(quality, "value"):
-        quality_str = str(quality.value).lower()
-    else:
-        quality_str = str(quality).lower()
+    quality_str = str(quality.value).lower() if hasattr(quality, "value") else str(quality).lower()
 
     if "good" in quality_str:
         return TagQuality.GOOD
@@ -47,7 +44,7 @@ def _quality_to_enum(quality: Any) -> TagQuality:
         return TagQuality.NOT_CONNECTED
 
 
-def _format_tag_value(name: str, value: Any, tag_manager: Any) -> TagValue:
+def _format_tag_value(name: str, tag_manager: Any) -> TagValue:
     """Format a tag value for API response."""
     # Get tag value from manager
     tag_value = tag_manager.get_tag(name)
@@ -64,10 +61,7 @@ def _format_tag_value(name: str, value: Any, tag_manager: Any) -> TagValue:
         )
 
     timestamp = tag_value.timestamp if tag_value.timestamp else datetime.now(UTC)
-    if hasattr(timestamp, "isoformat"):
-        timestamp_str = timestamp.isoformat()
-    else:
-        timestamp_str = str(timestamp)
+    timestamp_str = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
 
     return TagValue(
         name=name,
@@ -106,7 +100,7 @@ async def list_tags(
     tag_names = tag_manager.get_all_tag_names()
 
     for name in tag_names:
-        tags.append(_format_tag_value(name, None, tag_manager))
+        tags.append(_format_tag_value(name, tag_manager))
 
     logger.debug(
         "Listed tags",
@@ -127,7 +121,7 @@ async def list_tags(
 )
 async def get_tag(
     tag_name: str,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     tag_manager: TagManagerDep,
 ) -> TagValue:
     """Get a single tag value.
@@ -153,7 +147,7 @@ async def get_tag(
             detail=f"Tag not found: {tag_name}",
         )
 
-    return _format_tag_value(tag_name, tag_value, tag_manager)
+    return _format_tag_value(tag_name, tag_manager)
 
 
 @router.post(

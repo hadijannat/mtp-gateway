@@ -9,8 +9,8 @@ import structlog
 from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
 from jose import JWTError
 
-from mtp_gateway.adapters.northbound.webui.security.jwt import TokenService
-from mtp_gateway.adapters.northbound.webui.websocket.manager import WebSocketManager
+from mtp_gateway.adapters.northbound.webui.security.jwt import TokenService  # noqa: TC001
+from mtp_gateway.adapters.northbound.webui.websocket.manager import WebSocketManager  # noqa: TC001
 
 logger = structlog.get_logger(__name__)
 

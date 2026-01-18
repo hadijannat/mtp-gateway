@@ -61,7 +61,9 @@ class TestPasswordService:
         with pytest.raises(ValueError, match="cannot be empty"):
             password_service.hash_password("")
 
-    def test_verify_password_returns_true_for_valid(self, password_service: PasswordService) -> None:
+    def test_verify_password_returns_true_for_valid(
+        self, password_service: PasswordService
+    ) -> None:
         """Should return True for correct password."""
         password = "correctpassword"
         hash_value = password_service.hash_password(password)
@@ -111,7 +113,9 @@ class TestPasswordService:
 
         assert password_service.verify_password(password, hash_value) is True
 
-    def test_needs_rehash_returns_false_for_current(self, password_service: PasswordService) -> None:
+    def test_needs_rehash_returns_false_for_current(
+        self, password_service: PasswordService
+    ) -> None:
         """Should return False for hashes with current parameters."""
         hash_value = password_service.hash_password("testpassword")
 

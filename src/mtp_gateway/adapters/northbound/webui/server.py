@@ -7,6 +7,7 @@ Follows the same lifecycle pattern as the OPC UA server.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from mtp_gateway.adapters.northbound.webui.database.connection import (
     DatabasePool,
     set_db_pool,
+)
+from mtp_gateway.adapters.northbound.webui.routers import (
+    alarms,
+    auth,
+    health,
+    history,
+    services,
+    tags,
+    ws,
 )
 from mtp_gateway.adapters.northbound.webui.security.jwt import TokenService
 from mtp_gateway.adapters.northbound.webui.services.alarm_detector import AlarmDetector
@@ -86,8 +96,7 @@ class MTPWebUIServer:
         if not secret:
             # Generate a warning and use a default (not production safe!)
             logger.warning(
-                "No JWT secret configured! Using default. "
-                "Set webui.jwt_secret for production."
+                "No JWT secret configured! Using default. Set webui.jwt_secret for production."
             )
             secret = "default-development-secret-change-in-production!!"
 
@@ -102,7 +111,7 @@ class MTPWebUIServer:
         """Create and configure the FastAPI application."""
 
         @asynccontextmanager
-        async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             """Manage application lifecycle."""
             # Startup
             logger.info("FastAPI application starting")
@@ -144,17 +153,6 @@ class MTPWebUIServer:
 
     def _setup_routers(self, app: FastAPI) -> None:
         """Setup API routers."""
-        # Import routers here to avoid circular imports
-        from mtp_gateway.adapters.northbound.webui.routers import (
-            alarms,
-            auth,
-            health,
-            history,
-            services,
-            tags,
-            ws,
-        )
-
         # Mount routers with /api/v1 prefix
         app.include_router(health.router, prefix="/api/v1", tags=["health"])
         app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
@@ -309,10 +307,8 @@ class MTPWebUIServer:
                 await asyncio.wait_for(self._serve_task, timeout=5.0)
             except TimeoutError:
                 self._serve_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self._serve_task
-                except asyncio.CancelledError:
-                    pass
 
         self._server = None
         self._serve_task = None

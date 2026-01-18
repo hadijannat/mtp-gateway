@@ -11,21 +11,21 @@ Provides FastAPI routers for all API endpoints:
 """
 
 from mtp_gateway.adapters.northbound.webui.routers import (
-    auth,
-    tags,
-    services,
     alarms,
-    history,
+    auth,
     health,
+    history,
+    services,
+    tags,
     ws,
 )
 
 __all__ = [
-    "auth",
-    "tags",
-    "services",
     "alarms",
-    "history",
+    "auth",
     "health",
+    "history",
+    "services",
+    "tags",
     "ws",
 ]

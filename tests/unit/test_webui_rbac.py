@@ -150,9 +150,7 @@ class TestRBACService:
         assert rbac_service.has_all_permissions(user_perms, ["tags:read", "tags:write"]) is True
 
         # Missing one
-        assert (
-            rbac_service.has_all_permissions(user_perms, ["tags:read", "config:read"]) is False
-        )
+        assert rbac_service.has_all_permissions(user_perms, ["tags:read", "config:read"]) is False
 
     def test_has_all_permissions_with_enum(self, rbac_service: RBACService) -> None:
         """Should work with Permission enum."""

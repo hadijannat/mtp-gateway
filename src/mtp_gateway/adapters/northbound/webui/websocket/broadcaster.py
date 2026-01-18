@@ -7,6 +7,7 @@ Handles rate limiting and batching for efficient updates.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -19,8 +20,8 @@ from mtp_gateway.adapters.northbound.webui.websocket.manager import (
 )
 
 if TYPE_CHECKING:
-    from mtp_gateway.application.tag_manager import TagManager
     from mtp_gateway.application.service_manager import ServiceManager
+    from mtp_gateway.application.tag_manager import TagManager
     from mtp_gateway.domain.model.tags import TagValue
 
 logger = structlog.get_logger(__name__)
@@ -52,6 +53,7 @@ class EventBroadcaster:
         self._last_update: dict[str, float] = {}  # tag_name -> timestamp
         self._pending_updates: dict[str, dict[str, Any]] = {}  # tag_name -> payload
         self._update_task: asyncio.Task[None] | None = None
+        self._background_tasks: set[asyncio.Task] = set()
         self._running = False
 
     async def start(self) -> None:
@@ -70,12 +72,15 @@ class EventBroadcaster:
 
         if self._update_task:
             self._update_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._update_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Event broadcaster stopped")
+
+    def _track_task(self, task: asyncio.Task) -> None:
+        """Track a background task to avoid garbage collection."""
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     async def _flush_pending_updates(self) -> None:
         """Background task to flush rate-limited updates."""
@@ -98,7 +103,7 @@ class EventBroadcaster:
                     filter_key=tag_name,
                 )
 
-    def on_tag_change(self, tag_name: str, value: "TagValue") -> None:
+    def on_tag_change(self, tag_name: str, value: TagValue) -> None:
         """Handle tag value change from TagManager.
 
         Rate limits updates to prevent flooding clients.
@@ -113,14 +118,18 @@ class EventBroadcaster:
         payload = {
             "tag_name": tag_name,
             "value": value.value,
-            "quality": value.quality.value if hasattr(value.quality, "value") else str(value.quality),
-            "timestamp": value.timestamp.isoformat() if value.timestamp else datetime.now(UTC).isoformat(),
+            "quality": (
+                value.quality.value if hasattr(value.quality, "value") else str(value.quality)
+            ),
+            "timestamp": (
+                value.timestamp.isoformat() if value.timestamp else datetime.now(UTC).isoformat()
+            ),
         }
 
         # If enough time has passed, broadcast immediately
         if (now - last) * 1000 >= self._min_interval_ms:
             self._last_update[tag_name] = now
-            asyncio.create_task(
+            task = asyncio.create_task(
                 self._ws_manager.broadcast_to_channel(
                     Channel.TAGS,
                     MessageType.TAG_UPDATE,
@@ -128,6 +137,7 @@ class EventBroadcaster:
                     filter_key=tag_name,
                 )
             )
+            self._track_task(task)
         else:
             # Queue for batched update
             self._pending_updates[tag_name] = payload
@@ -154,7 +164,7 @@ class EventBroadcaster:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        asyncio.create_task(
+        task = asyncio.create_task(
             self._ws_manager.broadcast_to_channel(
                 Channel.SERVICES,
                 MessageType.STATE_CHANGE,
@@ -162,6 +172,7 @@ class EventBroadcaster:
                 filter_key=service_name,
             )
         )
+        self._track_task(task)
 
         logger.debug(
             "Broadcast state change",
@@ -192,13 +203,14 @@ class EventBroadcaster:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        asyncio.create_task(
+        task = asyncio.create_task(
             self._ws_manager.broadcast_to_channel(
                 Channel.ALARMS,
                 MessageType.ALARM,
                 payload,
             )
         )
+        self._track_task(task)
 
         logger.debug(
             "Broadcast alarm",
@@ -238,13 +250,14 @@ class EventBroadcaster:
         if message is not None:
             payload["message"] = message
 
-        asyncio.create_task(
+        task = asyncio.create_task(
             self._ws_manager.broadcast_to_channel(
                 Channel.ALARMS,
                 MessageType.ALARM,
                 payload,
             )
         )
+        self._track_task(task)
 
         logger.debug(
             "Broadcast alarm change",
@@ -255,8 +268,8 @@ class EventBroadcaster:
 
 
 def create_broadcaster_with_subscriptions(
-    tag_manager: "TagManager",
-    service_manager: "ServiceManager",
+    tag_manager: TagManager,
+    service_manager: ServiceManager,
     ws_manager: WebSocketManager,
     min_update_interval_ms: int = 100,
 ) -> EventBroadcaster:

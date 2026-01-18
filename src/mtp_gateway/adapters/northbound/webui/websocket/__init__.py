@@ -6,6 +6,10 @@ Provides:
 - Event broadcasting from application layer
 """
 
+from mtp_gateway.adapters.northbound.webui.websocket.broadcaster import (
+    EventBroadcaster,
+    create_broadcaster_with_subscriptions,
+)
 from mtp_gateway.adapters.northbound.webui.websocket.manager import (
     Channel,
     Connection,
@@ -13,17 +17,13 @@ from mtp_gateway.adapters.northbound.webui.websocket.manager import (
     Subscription,
     WebSocketManager,
 )
-from mtp_gateway.adapters.northbound.webui.websocket.broadcaster import (
-    EventBroadcaster,
-    create_broadcaster_with_subscriptions,
-)
 
 __all__ = [
     "Channel",
     "Connection",
+    "EventBroadcaster",
     "MessageType",
     "Subscription",
     "WebSocketManager",
-    "EventBroadcaster",
     "create_broadcaster_with_subscriptions",
 ]

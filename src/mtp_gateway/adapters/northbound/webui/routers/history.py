@@ -6,11 +6,12 @@ Provides endpoints for tag history queries using TimescaleDB time-series feature
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
+from mtp_gateway.adapters.northbound.webui.database.repository import HistoryRepository
 from mtp_gateway.adapters.northbound.webui.dependencies import (
     CurrentUserDep,
     require_permission,
@@ -24,29 +25,40 @@ from mtp_gateway.adapters.northbound.webui.schemas.history import (
 )
 from mtp_gateway.adapters.northbound.webui.security.rbac import Permission
 
-if TYPE_CHECKING:
-    from mtp_gateway.adapters.northbound.webui.database.repository import (
-        HistoryRepository,
-    )
-
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
+AGGREGATE_QUERY_DEFAULT = Query(
+    default=AggregateFunction.NONE,
+    description="Aggregation function",
+)
+BUCKET_QUERY_DEFAULT = Query(
+    default="1m",
+    description="Time bucket size (1s, 5s, 10s, 30s, 1m, 5m, 15m, 30m, 1h, 4h, 1d)",
+)
+LIMIT_QUERY_DEFAULT = Query(default=1000, ge=1, le=10000, description="Max data points")
+AGGREGATE_MULTI_QUERY_DEFAULT = Query(
+    default=AggregateFunction.AVG,
+    description="Aggregation function",
+)
+LIMIT_MULTI_QUERY_DEFAULT = Query(
+    default=1000,
+    ge=1,
+    le=10000,
+    description="Max data points per tag",
+)
 
-def _get_history_repository(request: Request) -> "HistoryRepository | None":
+
+def _get_history_repository(request: Request) -> HistoryRepository | None:
     """Get history repository from app state if database is configured."""
     db_pool = getattr(request.app.state, "db_pool", None)
     if db_pool and db_pool.is_connected:
-        from mtp_gateway.adapters.northbound.webui.database.repository import (
-            HistoryRepository,
-        )
-
         return HistoryRepository(db_pool.pool)
     return None
 
 
-HistoryRepoDep = Annotated["HistoryRepository | None", Depends(_get_history_repository)]
+HistoryRepoDep = Annotated[HistoryRepository | None, Depends(_get_history_repository)]
 
 
 def _parse_datetime(dt_str: str) -> datetime:
@@ -68,9 +80,12 @@ def _parse_datetime(dt_str: str) -> datetime:
             dt = dt.replace(tzinfo=UTC)
         return dt
     except ValueError as e:
+        message = (
+            f"Invalid datetime format: {dt_str}. Use ISO 8601 format (e.g., 2024-01-15T10:30:00Z)"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid datetime format: {dt_str}. Use ISO 8601 format (e.g., 2024-01-15T10:30:00Z)",
+            detail=message,
         ) from e
 
 
@@ -106,15 +121,9 @@ async def get_tag_history(
     tag: str = Query(..., description="Tag name to query"),
     start: str = Query(..., description="Start time (ISO 8601)"),
     end: str = Query(..., description="End time (ISO 8601)"),
-    aggregate: AggregateFunction = Query(
-        default=AggregateFunction.NONE,
-        description="Aggregation function",
-    ),
-    bucket: str = Query(
-        default="1m",
-        description="Time bucket size (1s, 5s, 10s, 30s, 1m, 5m, 15m, 30m, 1h, 4h, 1d)",
-    ),
-    limit: int = Query(default=1000, ge=1, le=10000, description="Max data points"),
+    aggregate: AggregateFunction = AGGREGATE_QUERY_DEFAULT,
+    bucket: str = BUCKET_QUERY_DEFAULT,
+    limit: int = LIMIT_QUERY_DEFAULT,
 ) -> HistoryResponse:
     """Query tag history with optional aggregation.
 
@@ -220,15 +229,9 @@ async def get_multi_tag_history(
     tags: str = Query(..., description="Comma-separated tag names (max 10)"),
     start: str = Query(..., description="Start time (ISO 8601)"),
     end: str = Query(..., description="End time (ISO 8601)"),
-    aggregate: AggregateFunction = Query(
-        default=AggregateFunction.AVG,
-        description="Aggregation function",
-    ),
-    bucket: str = Query(
-        default="1m",
-        description="Time bucket size",
-    ),
-    limit: int = Query(default=1000, ge=1, le=10000, description="Max data points per tag"),
+    aggregate: AggregateFunction = AGGREGATE_MULTI_QUERY_DEFAULT,
+    bucket: str = BUCKET_QUERY_DEFAULT,
+    limit: int = LIMIT_MULTI_QUERY_DEFAULT,
 ) -> MultiTagHistoryResponse:
     """Query history for multiple tags simultaneously.
 

@@ -29,7 +29,7 @@ logger = structlog.get_logger(__name__)
 oauth2_scheme = HTTPBearer(auto_error=False)
 
 
-def get_tag_manager(request: Request) -> "TagManager":
+def get_tag_manager(request: Request) -> TagManager:
     """Get TagManager from app state.
 
     Args:
@@ -41,7 +41,7 @@ def get_tag_manager(request: Request) -> "TagManager":
     return request.app.state.tag_manager
 
 
-def get_service_manager(request: Request) -> "ServiceManager | None":
+def get_service_manager(request: Request) -> ServiceManager | None:
     """Get ServiceManager from app state.
 
     Args:
@@ -65,7 +65,7 @@ def get_token_service(request: Request) -> TokenService:
     return request.app.state.token_service
 
 
-def get_config(request: Request) -> "GatewayConfig":
+def get_config(request: Request) -> GatewayConfig:
     """Get GatewayConfig from app state.
 
     Args:

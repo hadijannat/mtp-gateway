@@ -7,17 +7,29 @@ Pool management follows FastAPI's lifespan pattern.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, AsyncIterator
+from typing import TYPE_CHECKING
 
 import structlog
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from asyncpg import Connection, Pool
+
+try:
+    import asyncpg
+except ImportError:  # pragma: no cover - optional dependency
+    asyncpg = None
 
 logger = structlog.get_logger(__name__)
 
-# Global pool reference - initialized by server lifespan
-_pool: Pool | None = None
+
+# Module-level pool reference - initialized by server lifespan
+class _PoolState:
+    pool: Pool | None = None
+
+
+_POOL_STATE = _PoolState()
 
 
 class DatabasePool:
@@ -55,9 +67,10 @@ class DatabasePool:
         if self._pool is not None:
             return
 
-        try:
-            import asyncpg
+        if asyncpg is None:
+            raise RuntimeError("asyncpg is required for database support")
 
+        try:
             # Parse URL and create pool
             self._pool = await asyncpg.create_pool(
                 self._database_url,
@@ -107,7 +120,7 @@ class DatabasePool:
         """Check if pool is initialized and connected."""
         return self._pool is not None
 
-    async def __aenter__(self) -> "DatabasePool":
+    async def __aenter__(self) -> DatabasePool:
         """Async context manager entry."""
         await self.start()
         return self
@@ -126,8 +139,7 @@ def set_db_pool(pool: DatabasePool | None) -> None:
     Args:
         pool: Database pool instance or None to clear
     """
-    global _pool
-    _pool = pool._pool if pool else None
+    _POOL_STATE.pool = pool._pool if pool else None
 
 
 def get_db_pool() -> Pool:
@@ -141,6 +153,6 @@ def get_db_pool() -> Pool:
     Raises:
         RuntimeError: If pool not initialized
     """
-    if _pool is None:
+    if _POOL_STATE.pool is None:
         raise RuntimeError("Database pool not initialized")
-    return _pool
+    return _POOL_STATE.pool

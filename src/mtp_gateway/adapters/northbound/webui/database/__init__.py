@@ -14,8 +14,8 @@ from mtp_gateway.adapters.northbound.webui.database.repository import (
 )
 
 __all__ = [
-    "DatabasePool",
-    "get_db_pool",
     "AlarmRepository",
+    "DatabasePool",
     "HistoryRepository",
+    "get_db_pool",
 ]

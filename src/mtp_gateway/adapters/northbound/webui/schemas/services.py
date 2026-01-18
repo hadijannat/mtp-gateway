@@ -91,7 +91,9 @@ class ServiceResponse(BaseModel):
     state_time: str | None = Field(default=None, description="Time in current state")
     procedure_id: int | None = Field(default=None, description="Active procedure ID")
     procedure_name: str | None = Field(default=None, description="Active procedure name")
-    procedures: list[ProcedureInfo] = Field(default_factory=list, description="Available procedures")
+    procedures: list[ProcedureInfo] = Field(
+        default_factory=list, description="Available procedures"
+    )
     interlocked: bool = Field(default=False, description="Interlock active")
     interlock_reason: str | None = Field(default=None, description="Interlock reason")
     mode: str = Field(default="thin_proxy", description="Proxy mode")

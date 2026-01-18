@@ -9,7 +9,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from jose import JWTError
 
-from mtp_gateway.adapters.northbound.webui.dependencies import (
+from mtp_gateway.adapters.northbound.webui.dependencies import (  # noqa: TC001
     CurrentUserDep,
     TokenServiceDep,
 )
@@ -33,8 +33,9 @@ _MOCK_USERS = {
         "id": 1,
         "username": "admin",
         "email": "admin@localhost",
-        # Password: "admin" - hash generated with argon2id
-        "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RdescudvJCsgt3ub+b+dWRWJTmaaJObG",
+        "password_hash": (
+            "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RdescudvJCsgt3ub+b+dWRWJTmaaJObG"
+        ),
         "role": "admin",
         "is_active": True,
     },
@@ -42,8 +43,9 @@ _MOCK_USERS = {
         "id": 2,
         "username": "operator",
         "email": "operator@localhost",
-        # Password: "operator"
-        "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RdescudvJCsgt3ub+b+dWRWJTmaaJObG",
+        "password_hash": (
+            "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RdescudvJCsgt3ub+b+dWRWJTmaaJObG"
+        ),
         "role": "operator",
         "is_active": True,
     },

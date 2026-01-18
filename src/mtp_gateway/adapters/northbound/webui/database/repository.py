@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import structlog
 
 if TYPE_CHECKING:
-    from asyncpg import Connection, Pool, Record
+    from asyncpg import Pool, Record
 
 logger = structlog.get_logger(__name__)
 
@@ -37,7 +37,7 @@ class AlarmRecord:
     shelved_until: datetime | None
 
     @classmethod
-    def from_row(cls, row: Record) -> "AlarmRecord":
+    def from_row(cls, row: Record) -> AlarmRecord:
         """Create from database row."""
         return cls(
             id=row["id"],
@@ -66,7 +66,7 @@ class HistoryRecord:
     quality: str
 
     @classmethod
-    def from_row(cls, row: Record) -> "HistoryRecord":
+    def from_row(cls, row: Record) -> HistoryRecord:
         """Create from database row."""
         return cls(
             time=row["time"] if isinstance(row["time"], datetime) else row["bucket"],
@@ -163,9 +163,7 @@ class AlarmRepository:
             active_count = await conn.fetchval(
                 "SELECT COUNT(*) FROM alarms WHERE state IN ('active', 'acknowledged')"
             )
-            unack_count = await conn.fetchval(
-                "SELECT COUNT(*) FROM alarms WHERE state = 'active'"
-            )
+            unack_count = await conn.fetchval("SELECT COUNT(*) FROM alarms WHERE state = 'active'")
 
             return alarms, total, active_count, unack_count
 
@@ -440,7 +438,19 @@ class HistoryRepository:
     """
 
     # Valid time bucket formats
-    VALID_BUCKETS = {"1s", "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "4h", "1d"}
+    VALID_BUCKETS: ClassVar[set[str]] = {
+        "1s",
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "4h",
+        "1d",
+    }
 
     def __init__(self, pool: Pool) -> None:
         """Initialize with connection pool.
@@ -638,9 +648,8 @@ class HistoryRepository:
             result: dict[str, list[HistoryRecord]] = {name: [] for name in tag_names}
             for row in rows:
                 record = HistoryRecord.from_row(row)
-                if record.tag_name in result:
-                    if len(result[record.tag_name]) < limit:
-                        result[record.tag_name].append(record)
+                if record.tag_name in result and len(result[record.tag_name]) < limit:
+                    result[record.tag_name].append(record)
 
             return result
 

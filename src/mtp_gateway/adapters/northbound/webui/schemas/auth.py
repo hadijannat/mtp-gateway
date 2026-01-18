@@ -61,7 +61,7 @@ class LoginResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     tokens: TokenResponse
-    user: "UserResponse"
+    user: UserResponse
 
 
 class RefreshRequest(BaseModel):
