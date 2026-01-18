@@ -10,7 +10,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from asyncua import Server, ua
+from asyncua import ua
 
 from mtp_gateway.adapters.northbound.opcua.nodes import MTPNodeBuilder
 from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
@@ -298,9 +298,44 @@ class TestOPCUANodeBuilderServiceNodes:
         also a dict mapping service names to their key control nodes
         (CommandOp, StateCur, ProcedureCur).
         """
-        server = Server()
-        await server.init()
-        ns = await server.register_namespace("urn:test")
+
+        class FakeVariable:
+            def __init__(self, name: str) -> None:
+                self.name = name
+
+            async def set_writable(self) -> None:
+                return None
+
+        class FakeNode:
+            def __init__(self, name: str) -> None:
+                self.name = name
+                self.children: dict[str, FakeNode] = {}
+
+            async def add_folder(self, _node_id: object, name: str) -> "FakeNode":
+                node = FakeNode(name)
+                self.children[name] = node
+                return node
+
+            async def add_object(self, _node_id: object, name: str) -> "FakeNode":
+                node = FakeNode(name)
+                self.children[name] = node
+                return node
+
+            async def add_variable(
+                self,
+                _node_id: object,
+                name: str,
+                _value: object,
+                **_kwargs: object,
+            ) -> FakeVariable:
+                return FakeVariable(name)
+
+        class FakeServer:
+            def __init__(self) -> None:
+                self.nodes = type("Nodes", (), {"objects": FakeNode("Objects")})
+
+        server = FakeServer()
+        ns = 2
 
         builder = MTPNodeBuilder(server, ns, minimal_gateway_config.opcua.namespace_uri)
         (
@@ -321,8 +356,7 @@ class TestOPCUANodeBuilderServiceNodes:
         assert "StateCur" in service_node_refs
         assert "ProcedureCur" in service_node_refs
 
-        # Note: Not calling server.stop() since server was never started
-        # (only initialized). The asyncua server requires start() before stop().
+        # FakeServer has no lifecycle methods; no cleanup required.
 
 
 class TestOPCUAServerServiceManagerIntegration:
