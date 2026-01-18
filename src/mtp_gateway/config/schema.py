@@ -192,6 +192,22 @@ class OPCUAConfig(BaseModel):
     security: OPCUASecurityConfig = Field(default_factory=OPCUASecurityConfig)
 
 
+class WebUIConfig(BaseModel):
+    """Web UI server configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(default=False, description="Enable Web UI server")
+    host: str = Field(default="0.0.0.0", description="Server bind address")
+    port: int = Field(default=8080, ge=1, le=65535, description="Server port")
+    jwt_secret: str | None = Field(default=None, description="JWT signing secret (from env)")
+    jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
+    jwt_expiry_minutes: int = Field(default=30, ge=1, le=1440, description="Access token expiry")
+    jwt_refresh_expiry_days: int = Field(default=7, ge=1, le=30, description="Refresh token expiry")
+    cors_origins: list[str] = Field(default_factory=list, description="Allowed CORS origins")
+    database_url: str | None = Field(default=None, description="TimescaleDB connection URL")
+
+
 # =============================================================================
 # CONNECTOR CONFIGURATION
 # =============================================================================
@@ -602,6 +618,7 @@ class GatewayConfig(BaseModel):
     )
     gateway: GatewayInfo
     opcua: OPCUAConfig = Field(default_factory=OPCUAConfig)
+    webui: WebUIConfig = Field(default_factory=WebUIConfig)
     runtime: RuntimePolicyConfig = Field(default_factory=RuntimePolicyConfig)
     connectors: list[ConnectorConfig] = Field(default_factory=list)
     tags: list[TagConfig] = Field(default_factory=list)
