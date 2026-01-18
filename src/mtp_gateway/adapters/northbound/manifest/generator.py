@@ -16,8 +16,7 @@ import uuid
 import zipfile
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from xml.dom import minidom
-from xml.etree import ElementTree as ET
+from defusedxml import ElementTree as ET
 
 import structlog
 
@@ -438,9 +437,24 @@ class MTPManifestGenerator:
 
     def _to_xml_string(self, root: ET.Element) -> str:
         """Convert element tree to formatted XML string."""
-        rough_string = ET.tostring(root, encoding="unicode")
-        reparsed = minidom.parseString(rough_string)
-        return reparsed.toprettyxml(indent="  ", encoding=None)
+        if hasattr(ET, "indent"):
+            ET.indent(root, space="  ")
+        else:
+            self._indent_element(root)
+        return ET.tostring(root, encoding="unicode")
+
+    def _indent_element(self, elem: ET.Element, level: int = 0) -> None:
+        """Indent XML elements for readability when ET.indent is unavailable."""
+        indentation = "\n" + level * "  "
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = indentation + "  "
+            for child in elem:
+                self._indent_element(child, level + 1)
+            if not elem[-1].tail or not elem[-1].tail.strip():
+                elem[-1].tail = indentation
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = indentation
 
     def _generate_package_metadata(self) -> str:
         """Generate package metadata info."""

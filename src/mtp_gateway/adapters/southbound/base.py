@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import random
+from random import SystemRandom
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from mtp_gateway.domain.model.tags import TagDefinition
 
 logger = structlog.get_logger(__name__)
+_JITTER_RNG = SystemRandom()
 
 
 class ConnectorState(Enum):
@@ -372,7 +373,7 @@ class ExponentialBackoff:
 
         # Add jitter to prevent thundering herd
         jitter_range = delay * self.jitter
-        delay += random.uniform(-jitter_range, jitter_range)
+        delay += _JITTER_RNG.uniform(-jitter_range, jitter_range)
 
         return max(0.1, float(delay))
 
