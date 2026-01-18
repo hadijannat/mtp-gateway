@@ -317,9 +317,9 @@ class MTPOPCUAServer:
                 self._track_task(asyncio.create_task(self._update_node_value(node_path, value)))
 
         # Update direct tag node if present
-        node_path = self._tag_nodes.get(tag_name)
-        if node_path and node_path in self._nodes:
-            self._track_task(asyncio.create_task(self._update_node_value(node_path, value)))
+        tag_node_path = self._tag_nodes.get(tag_name)
+        if tag_node_path and tag_node_path in self._nodes:
+            self._track_task(asyncio.create_task(self._update_node_value(tag_node_path, value)))
 
         # Check if this tag is bound to any Interlock variables
         if tag_name in self._interlock_bindings:

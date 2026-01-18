@@ -16,11 +16,11 @@ import struct
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
-from pymodbus.exceptions import ModbusException
+from pymodbus.exceptions import ModbusException as PymodbusModbusException
 from pymodbus.pdu import ExceptionResponse
 
 from mtp_gateway.adapters.southbound.base import BaseConnector
@@ -30,6 +30,8 @@ if TYPE_CHECKING:
     from mtp_gateway.config.schema import ModbusRTUConnectorConfig, ModbusTCPConnectorConfig
 
 logger = structlog.get_logger(__name__)
+
+ModbusException = cast("type[Exception]", PymodbusModbusException)
 
 
 class ModbusRegisterType(Enum):
@@ -190,7 +192,8 @@ def decode_registers(
     if datatype == "bool":
         return bool(regs[0] & 0x01)
 
-    return struct.unpack(f">{fmt}", raw_bytes[: expected_regs * 2])[0]
+    value = struct.unpack(f">{fmt}", raw_bytes[: expected_regs * 2])[0]
+    return cast("float | int", value)
 
 
 def encode_value(
@@ -384,11 +387,12 @@ class ModbusTCPConnector(BaseConnector):
         """Read a single Modbus address."""
         if not self._client:
             raise ConnectionError("Not connected")
+        client = cast("Any", self._client)
 
         count = get_register_count(datatype)
 
         if parsed.register_type == ModbusRegisterType.COIL:
-            response = await self._client.read_coils(
+            response = await client.read_coils(
                 address=parsed.address,
                 count=1,
                 slave=self._unit_id,
@@ -398,7 +402,7 @@ class ModbusTCPConnector(BaseConnector):
             return response.bits[0]
 
         elif parsed.register_type == ModbusRegisterType.DISCRETE_INPUT:
-            response = await self._client.read_discrete_inputs(
+            response = await client.read_discrete_inputs(
                 address=parsed.address,
                 count=1,
                 slave=self._unit_id,
@@ -408,7 +412,7 @@ class ModbusTCPConnector(BaseConnector):
             return response.bits[0]
 
         elif parsed.register_type == ModbusRegisterType.INPUT_REGISTER:
-            response = await self._client.read_input_registers(
+            response = await client.read_input_registers(
                 address=parsed.address,
                 count=count,
                 slave=self._unit_id,
@@ -425,7 +429,7 @@ class ModbusTCPConnector(BaseConnector):
             )
 
         elif parsed.register_type == ModbusRegisterType.HOLDING_REGISTER:
-            response = await self._client.read_holding_registers(
+            response = await client.read_holding_registers(
                 address=parsed.address,
                 count=count,
                 slave=self._unit_id,
@@ -447,11 +451,12 @@ class ModbusTCPConnector(BaseConnector):
         """Write to a single Modbus address."""
         if not self._client:
             raise ConnectionError("Not connected")
+        client = cast("Any", self._client)
 
         parsed = parse_modbus_address(address)
 
         if parsed.register_type == ModbusRegisterType.COIL:
-            response = await self._client.write_coil(
+            response = await client.write_coil(
                 address=parsed.address,
                 value=bool(value),
                 slave=self._unit_id,
@@ -468,13 +473,13 @@ class ModbusTCPConnector(BaseConnector):
                 raise ValueError(f"Unsupported write value type: {type(value)}")
 
             if len(registers) == 1:
-                response = await self._client.write_register(
+                response = await client.write_register(
                     address=parsed.address,
                     value=registers[0],
                     slave=self._unit_id,
                 )
             else:
-                response = await self._client.write_registers(
+                response = await client.write_registers(
                     address=parsed.address,
                     values=registers,
                     slave=self._unit_id,
@@ -492,11 +497,12 @@ class ModbusTCPConnector(BaseConnector):
         if not self._client:
             self._health.record_error("Not connected")
             return False
+        client = cast("Any", self._client)
 
         try:
             parsed = parse_modbus_address(tag.address)
             if parsed.register_type == ModbusRegisterType.COIL:
-                response = await self._client.write_coil(
+                response = await client.write_coil(
                     address=parsed.address,
                     value=bool(value),
                     slave=self._unit_id,
@@ -513,13 +519,13 @@ class ModbusTCPConnector(BaseConnector):
                 )
 
                 if len(registers) == 1:
-                    response = await self._client.write_register(
+                    response = await client.write_register(
                         address=parsed.address,
                         value=registers[0],
                         slave=self._unit_id,
                     )
                 else:
-                    response = await self._client.write_registers(
+                    response = await client.write_registers(
                         address=parsed.address,
                         values=registers,
                         slave=self._unit_id,
@@ -670,11 +676,12 @@ class ModbusRTUConnector(BaseConnector):
         """Read a single Modbus RTU address."""
         if not self._client:
             raise ConnectionError("Not connected")
+        client = cast("Any", self._client)
 
         count = get_register_count(datatype)
 
         if parsed.register_type == ModbusRegisterType.COIL:
-            response = await self._client.read_coils(
+            response = await client.read_coils(
                 address=parsed.address,
                 count=1,
                 slave=self._unit_id,
@@ -684,7 +691,7 @@ class ModbusRTUConnector(BaseConnector):
             return response.bits[0]
 
         elif parsed.register_type == ModbusRegisterType.DISCRETE_INPUT:
-            response = await self._client.read_discrete_inputs(
+            response = await client.read_discrete_inputs(
                 address=parsed.address,
                 count=1,
                 slave=self._unit_id,
@@ -694,7 +701,7 @@ class ModbusRTUConnector(BaseConnector):
             return response.bits[0]
 
         elif parsed.register_type == ModbusRegisterType.INPUT_REGISTER:
-            response = await self._client.read_input_registers(
+            response = await client.read_input_registers(
                 address=parsed.address,
                 count=count,
                 slave=self._unit_id,
@@ -711,7 +718,7 @@ class ModbusRTUConnector(BaseConnector):
             )
 
         elif parsed.register_type == ModbusRegisterType.HOLDING_REGISTER:
-            response = await self._client.read_holding_registers(
+            response = await client.read_holding_registers(
                 address=parsed.address,
                 count=count,
                 slave=self._unit_id,
@@ -733,11 +740,12 @@ class ModbusRTUConnector(BaseConnector):
         """Write to a single Modbus RTU address."""
         if not self._client:
             raise ConnectionError("Not connected")
+        client = cast("Any", self._client)
 
         parsed = parse_modbus_address(address)
 
         if parsed.register_type == ModbusRegisterType.COIL:
-            response = await self._client.write_coil(
+            response = await client.write_coil(
                 address=parsed.address,
                 value=bool(value),
                 slave=self._unit_id,
@@ -753,13 +761,13 @@ class ModbusRTUConnector(BaseConnector):
                 raise ValueError(f"Unsupported write value type: {type(value)}")
 
             if len(registers) == 1:
-                response = await self._client.write_register(
+                response = await client.write_register(
                     address=parsed.address,
                     value=registers[0],
                     slave=self._unit_id,
                 )
             else:
-                response = await self._client.write_registers(
+                response = await client.write_registers(
                     address=parsed.address,
                     values=registers,
                     slave=self._unit_id,
@@ -777,11 +785,12 @@ class ModbusRTUConnector(BaseConnector):
         if not self._client:
             self._health.record_error("Not connected")
             return False
+        client = cast("Any", self._client)
 
         try:
             parsed = parse_modbus_address(tag.address)
             if parsed.register_type == ModbusRegisterType.COIL:
-                response = await self._client.write_coil(
+                response = await client.write_coil(
                     address=parsed.address,
                     value=bool(value),
                     slave=self._unit_id,
@@ -798,13 +807,13 @@ class ModbusRTUConnector(BaseConnector):
                 )
 
                 if len(registers) == 1:
-                    response = await self._client.write_register(
+                    response = await client.write_register(
                         address=parsed.address,
                         value=registers[0],
                         slave=self._unit_id,
                     )
                 else:
-                    response = await self._client.write_registers(
+                    response = await client.write_registers(
                         address=parsed.address,
                         values=registers,
                         slave=self._unit_id,

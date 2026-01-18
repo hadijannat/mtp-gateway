@@ -13,7 +13,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 
@@ -333,7 +333,7 @@ class TagManager:
         # Read from connector
         read_tag_values = getattr(connector, "read_tag_values", None)
         if read_tag_values and inspect.iscoroutinefunction(read_tag_values):
-            values = await read_tag_values([tag_def])
+            values = cast("dict[str, TagValue]", await read_tag_values([tag_def]))
             tag_value = values.get(tag_def.name)
         else:
             values = await connector.read_tags([tag_def.address])
@@ -429,7 +429,7 @@ class TagManager:
             # Read back the value to confirm
             await self.read_tag(name)
 
-        return success
+        return cast("bool", success)
 
     def get_tags_by_connector(self, connector_name: str) -> list[TagState]:
         """Get all tags for a specific connector."""

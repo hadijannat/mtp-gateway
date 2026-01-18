@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -81,7 +81,7 @@ def expand_env_vars(config: dict[str, Any]) -> dict[str, Any]:
             return [expand_value(item) for item in value]
         return value
 
-    return expand_value(config)
+    return cast("dict[str, Any]", expand_value(config))
 
 
 def merge_configs(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -145,7 +145,7 @@ def load_config(
     try:
         config = GatewayConfig.model_validate(config_dict)
     except ValidationError as e:
-        errors = e.errors()
+        errors = cast("list[dict[str, Any]]", e.errors())
         error_messages = []
         for error in errors:
             loc = ".".join(str(x) for x in error["loc"])

@@ -17,11 +17,10 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import structlog
 
-from mtp_gateway.config.schema import ConnectorType
+from mtp_gateway.config.schema import ConnectorConfig, ConnectorType
 from mtp_gateway.domain.model.tags import Quality, TagValue
 
 if TYPE_CHECKING:
-    from mtp_gateway.config.schema import ConnectorConfig
     from mtp_gateway.domain.model.tags import TagDefinition
 
 logger = structlog.get_logger(__name__)
@@ -147,8 +146,8 @@ class BaseConnector(ABC):
     and error handling.
     """
 
-    def __init__(self, config: Any) -> None:
-        self._config = config
+    def __init__(self, config: ConnectorConfig) -> None:
+        self._config: ConnectorConfig = config
         self._health = ConnectorHealth(state=ConnectorState.DISCONNECTED)
         self._lock = asyncio.Lock()
         self._backoff = ExponentialBackoff(
@@ -375,7 +374,7 @@ class ExponentialBackoff:
         jitter_range = delay * self.jitter
         delay += random.uniform(-jitter_range, jitter_range)
 
-        return max(0.1, delay)
+        return max(0.1, float(delay))
 
     def reset(self) -> None:
         """Reset attempt counter."""

@@ -190,8 +190,8 @@ class ServiceManager:
         self._sync_tasks.clear()
 
         # Cancel background tasks
-        for task in self._background_tasks:
-            task.cancel()
+        for bg_task in self._background_tasks:
+            bg_task.cancel()
         if self._background_tasks:
             await asyncio.gather(*self._background_tasks, return_exceptions=True)
         self._background_tasks.clear()

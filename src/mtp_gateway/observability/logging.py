@@ -9,9 +9,12 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
+
+if TYPE_CHECKING:
+    from structlog.stdlib import BoundLogger
 
 
 def setup_logging(
@@ -27,11 +30,11 @@ def setup_logging(
             or 'console'.
     """
     # Get settings from environment or parameters
-    level = level or os.environ.get("MTP_LOG_LEVEL", "INFO")
+    level_value = level or os.environ.get("MTP_LOG_LEVEL") or "INFO"
     log_format = log_format or os.environ.get("MTP_LOG_FORMAT", "console")
 
     # Convert string level to logging constant
-    log_level = getattr(logging, level.upper(), logging.INFO)
+    log_level = getattr(logging, level_value.upper(), logging.INFO)
 
     # Configure standard library logging
     logging.basicConfig(
@@ -77,7 +80,7 @@ def setup_logging(
     )
 
 
-def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+def get_logger(name: str) -> BoundLogger:
     """Get a logger instance.
 
     Args:
@@ -86,7 +89,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     Returns:
         Configured structlog logger
     """
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]
 
 
 class LogContext:

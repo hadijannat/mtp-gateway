@@ -85,6 +85,8 @@ class GatewayRuntime:
         """Initialize service manager for state machine execution."""
         interlock_evaluator = self._build_interlock_evaluator()
         safety = SafetyController.from_config(self.config.safety)
+        if self._tag_manager is None:
+            raise RuntimeError("Tag manager must be initialized before service manager")
         self._service_manager = ServiceManager(
             tag_manager=self._tag_manager,
             services=self.config.mtp.services,
@@ -95,6 +97,9 @@ class GatewayRuntime:
 
     async def _init_opcua_server(self) -> None:
         """Initialize OPC UA server."""
+        if self._tag_manager is None:
+            raise RuntimeError("Tag manager must be initialized before OPC UA server")
+
         self._opcua_server = MTPOPCUAServer(
             config=self.config,
             tag_manager=self._tag_manager,
