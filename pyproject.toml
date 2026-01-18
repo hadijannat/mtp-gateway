@@ -159,6 +159,7 @@ module = [
     "snap7.*",
     "pycomm3.*",
     "asyncua.*",
+    "jose.*",
 ]
 ignore_missing_imports = true
 

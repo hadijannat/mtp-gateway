@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+/* Industrial Dark Theme - MTP Gateway */
+@theme {
+  /* Background colors */
+  --color-bg-primary: #1a1d23;
+  --color-bg-secondary: #22262e;
+  --color-bg-tertiary: #2a2f38;
+  --color-bg-elevated: #32373f;
+
+  /* Text colors */
+  --color-text-primary: #e4e7eb;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+
+  /* Status colors - industrial standard */
+  --color-status-good: #22c55e;
+  --color-status-warning: #eab308;
+  --color-status-alarm: #ef4444;
+  --color-status-uncertain: #f97316;
+  --color-status-offline: #6b7280;
+
+  /* Accent colors */
+  --color-accent-primary: #3b82f6;
+  --color-accent-secondary: #8b5cf6;
+
+  /* Border colors */
+  --color-border-default: #374151;
+  --color-border-subtle: #2a2f38;
+
+  /* PackML State colors */
+  --color-packml-idle: #6b7280;
+  --color-packml-starting: #eab308;
+  --color-packml-execute: #22c55e;
+  --color-packml-completing: #3b82f6;
+  --color-packml-complete: #22c55e;
+  --color-packml-holding: #f97316;
+  --color-packml-held: #f97316;
+  --color-packml-unholding: #eab308;
+  --color-packml-suspending: #8b5cf6;
+  --color-packml-suspended: #8b5cf6;
+  --color-packml-unsuspending: #eab308;
+  --color-packml-stopping: #ef4444;
+  --color-packml-stopped: #6b7280;
+  --color-packml-aborting: #ef4444;
+  --color-packml-aborted: #ef4444;
+  --color-packml-clearing: #eab308;
+  --color-packml-resetting: #eab308;
+}
+
+/* Base styles */
+body {
+  @apply bg-bg-primary text-text-primary font-sans antialiased;
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom scrollbar for industrial look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border-default rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-text-muted;
+}
+
+/* Industrial card style */
+.card {
+  @apply bg-bg-secondary border border-border-default rounded-lg shadow-lg;
+}
+
+/* Status badge styles */
+.badge-good {
+  @apply bg-status-good/20 text-status-good border border-status-good/30;
+}
+
+.badge-warning {
+  @apply bg-status-warning/20 text-status-warning border border-status-warning/30;
+}
+
+.badge-alarm {
+  @apply bg-status-alarm/20 text-status-alarm border border-status-alarm/30;
+}
+
+.badge-uncertain {
+  @apply bg-status-uncertain/20 text-status-uncertain border border-status-uncertain/30;
+}
+
+.badge-offline {
+  @apply bg-status-offline/20 text-status-offline border border-status-offline/30;
+}
+
+/* Industrial button styles */
+.btn-primary {
+  @apply bg-accent-primary hover:bg-accent-primary/80 text-white font-medium py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-danger {
+  @apply bg-status-alarm hover:bg-status-alarm/80 text-white font-medium py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply bg-bg-tertiary hover:bg-bg-elevated text-text-primary border border-border-default font-medium py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-warning {
+  @apply bg-status-warning hover:bg-status-warning/80 text-bg-primary font-medium py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Input styles */
+.input {
+  @apply bg-bg-tertiary border border-border-default text-text-primary rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-primary/50 focus:border-accent-primary;
+}
+
+/* Table styles */
+.table-row {
+  @apply border-b border-border-subtle hover:bg-bg-tertiary/50 transition-colors;
+}
+
+/* Animation for live values */
+@keyframes pulse-value {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.value-updating {
+  animation: pulse-value 0.3s ease-in-out;
+}
+
+/* Animation for alarm flash */
+@keyframes alarm-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.alarm-active {
+  animation: alarm-flash 1s ease-in-out infinite;
+}

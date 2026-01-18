@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from mtp_gateway.adapters.northbound.opcua.server import MTPOPCUAServer
+from mtp_gateway.adapters.northbound.webui.server import MTPWebUIServer
 from mtp_gateway.adapters.southbound.base import ConnectorPort, ConnectorState, create_connector
 from mtp_gateway.application.service_manager import ServiceManager
 from mtp_gateway.application.tag_manager import TagManager
@@ -39,6 +40,7 @@ class GatewayRuntime:
     - Tag manager (polling and updates)
     - Service manager (state machine execution)
     - OPC UA server (northbound interface)
+    - WebUI server (REST API and WebSocket interface)
     """
 
     def __init__(self, config: GatewayConfig) -> None:
@@ -48,6 +50,7 @@ class GatewayRuntime:
         self._tag_manager: TagManager | None = None
         self._service_manager: ServiceManager | None = None
         self._opcua_server: MTPOPCUAServer | None = None
+        self._webui_server: MTPWebUIServer | None = None
         self._comm_monitor_task: asyncio.Task[None] | None = None
         self._comm_loss_triggered: set[str] = set()
 
@@ -64,6 +67,7 @@ class GatewayRuntime:
         await self._init_tag_manager()
         await self._init_service_manager()
         await self._init_opcua_server()
+        await self._init_webui_server()
         self._comm_monitor_task = asyncio.create_task(self._comm_monitor_loop())
 
         logger.info("MTP Gateway started successfully")
@@ -112,6 +116,22 @@ class GatewayRuntime:
         )
         await self._opcua_server.start()
 
+    async def _init_webui_server(self) -> None:
+        """Initialize WebUI server if enabled."""
+        if not self.config.webui.enabled:
+            logger.info("WebUI server disabled in configuration")
+            return
+
+        if self._tag_manager is None:
+            raise RuntimeError("Tag manager must be initialized before WebUI server")
+
+        self._webui_server = MTPWebUIServer(
+            config=self.config,
+            tag_manager=self._tag_manager,
+            service_manager=self._service_manager,
+        )
+        await self._webui_server.start()
+
     def _build_interlock_evaluator(self) -> InterlockEvaluator | None:
         """Build interlock evaluator from configuration."""
         if not self.config.mtp.data_assemblies:
@@ -153,6 +173,9 @@ class GatewayRuntime:
             self._comm_monitor_task = None
 
         # Stop in reverse order
+        if self._webui_server:
+            await self._webui_server.stop()
+
         if self._opcua_server:
             await self._opcua_server.stop()
 
