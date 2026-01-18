@@ -13,7 +13,7 @@
 
 ![MTP Gateway - Bridge Legacy PLCs to Industry 4.0](docs/assets/hero_banner.png)
 
-**Transform your existing factory equipment into Industry 4.0–ready assets with deterministic OPC UA interfaces and AutomationML manifests.**
+**Transform your existing factory equipment into Industry 4.0–ready assets with OPC UA interfaces, AutomationML manifests, and a modern web HMI.**
 
 ```mermaid
 flowchart LR
@@ -32,8 +32,8 @@ flowchart LR
 
     subgraph Northbound["🌐 Modern Systems"]
         UA[OPC UA Server]
+        WebUI[Web HMI]
         AML[AutomationML Manifest]
-        NS[NodeSet2 Export]
     end
 
     M --> Gateway
@@ -42,8 +42,8 @@ flowchart LR
     O --> Gateway
 
     Gateway --> UA
+    Gateway --> WebUI
     Gateway --> AML
-    Gateway --> NS
 ```
 
 </div>
@@ -126,6 +126,17 @@ MTP Gateway sits in the middle and handles the translation automatically. It:
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top">
+
+### 🖥️ Monitor
+- **Web HMI** — Real-time dashboard with dark industrial theme
+- **Alarm Management** — ISA-18.2 compliant with priorities
+- **Historical Trends** — TimescaleDB with time-bucket aggregation
+- **RBAC** — Operator, Engineer, Admin roles
+
+</td>
+</tr>
 </table>
 
 ---
@@ -186,6 +197,70 @@ mtp-gateway run config.yaml
 
 # Your OPC UA server is now available at opc.tcp://localhost:4840
 ```
+
+---
+
+## 🖥️ Web Interface
+
+MTP Gateway includes a modern web-based HMI for monitoring and control:
+
+![Dashboard Overview](docs/assets/webui/webui-dashboard.png)
+
+### Features
+
+- **Real-time Dashboard** — Live tag values with quality indicators and WebSocket updates
+- **Service Control** — PackML state machine visualization with safety interlocks
+- **Alarm Management** — ISA-18.2 compliant with acknowledge/shelve/clear actions
+- **Historical Trends** — TimescaleDB-powered analytics with time-bucket aggregation
+
+### Quick Start
+
+```bash
+# Start with WebUI enabled
+mtp-gateway run config.yaml --webui
+
+# Access at http://localhost:8080
+# Default credentials: operator / operator123
+```
+
+### 🎬 WebUI Demo: Reactor Monitoring
+
+**Scenario:** Monitor a pharmaceutical reactor with real-time data, respond to alarms, and analyze trends.
+
+<details>
+<summary>📸 Click to see the full WebUI walkthrough</summary>
+
+#### 1. Login
+
+![Login](docs/assets/webui/webui-login.png)
+
+*Secure authentication with role-based access control (Operator, Engineer, Admin)*
+
+#### 2. Dashboard Overview
+
+![Dashboard](docs/assets/webui/webui-dashboard.png)
+
+*Real-time view showing reactor temperature, pressure, and service states with WebSocket live updates*
+
+#### 3. Service Control
+
+![Services](docs/assets/webui/webui-services.png)
+
+*PackML state machine with START/STOP/HOLD commands and interlock indicators — blocked operations show clear warnings*
+
+#### 4. Alarm Management
+
+![Alarms](docs/assets/webui/webui-alarms.png)
+
+*ISA-18.2 alarm list with priority levels (Critical/High/Medium/Low), filtering, and bulk acknowledge*
+
+#### 5. Historical Trends
+
+![Trends](docs/assets/webui/webui-trends.png)
+
+*Time-series visualization with configurable time ranges and TimescaleDB aggregation functions*
+
+</details>
 
 ---
 
