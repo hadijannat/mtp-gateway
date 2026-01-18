@@ -10,10 +10,20 @@ from fastapi.testclient import TestClient
 from mtp_gateway.adapters.northbound.webui import dependencies
 from mtp_gateway.adapters.northbound.webui.routers import (
     alarms as alarms_router,
+)
+from mtp_gateway.adapters.northbound.webui.routers import (
     auth as auth_router,
+)
+from mtp_gateway.adapters.northbound.webui.routers import (
     health as health_router,
+)
+from mtp_gateway.adapters.northbound.webui.routers import (
     history as history_router,
+)
+from mtp_gateway.adapters.northbound.webui.routers import (
     services as services_router,
+)
+from mtp_gateway.adapters.northbound.webui.routers import (
     tags as tags_router,
 )
 from mtp_gateway.adapters.northbound.webui.security.jwt import TokenService
@@ -85,10 +95,11 @@ class StubServiceManager:
     def is_service_interlocked(self, _name: str) -> bool:
         return False
 
-    async def send_command(self, name: str, command: Any, _procedure_id: int | None = None) -> None:
+    async def send_command(self, name: str, command: Any, procedure_id: int | None = None) -> None:
         if name not in self._states:
             raise ValueError("Service not found")
         self.last_command = command.name if hasattr(command, "name") else str(command)
+        _ = procedure_id
         self._states[name] = PackMLState.EXECUTE
 
 

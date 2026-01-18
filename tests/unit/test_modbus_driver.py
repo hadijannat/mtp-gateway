@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pytest
 
 from mtp_gateway.adapters.southbound.modbus.driver import (
@@ -14,6 +16,7 @@ from mtp_gateway.config.schema import ModbusTCPConnectorConfig
 from mtp_gateway.domain.model.tags import DataType, Quality, TagDefinition
 
 
+@dataclass
 class DummyResponse:
     bits: list[bool] | None = None
     registers: list[int] | None = None
@@ -22,23 +25,28 @@ class DummyResponse:
 class DummyClient:
     def __init__(self) -> None:
         self.last_write: tuple[str, int, object] | None = None
+        self.last_read: tuple[str, int, int] | None = None
 
-    async def read_coils(self, _address: int, _count: int = 1, **_kwargs: object) -> DummyResponse:
+    async def read_coils(self, address: int, count: int = 1, **_kwargs: object) -> DummyResponse:
+        self.last_read = ("coil", address, count)
         return DummyResponse(bits=[True])
 
     async def read_discrete_inputs(
-        self, _address: int, _count: int = 1, **_kwargs: object
+        self, address: int, count: int = 1, **_kwargs: object
     ) -> DummyResponse:
+        self.last_read = ("discrete", address, count)
         return DummyResponse(bits=[False])
 
     async def read_input_registers(
-        self, _address: int, _count: int = 1, **_kwargs: object
+        self, address: int, count: int = 1, **_kwargs: object
     ) -> DummyResponse:
+        self.last_read = ("input", address, count)
         return DummyResponse(registers=[8])
 
     async def read_holding_registers(
-        self, _address: int, _count: int = 1, **_kwargs: object
+        self, address: int, count: int = 1, **_kwargs: object
     ) -> DummyResponse:
+        self.last_read = ("holding", address, count)
         return DummyResponse(registers=[42])
 
     async def write_coil(self, address: int, value: bool, **_kwargs: object) -> DummyResponse:
