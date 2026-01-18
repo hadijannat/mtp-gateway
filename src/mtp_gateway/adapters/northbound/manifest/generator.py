@@ -16,9 +16,9 @@ import uuid
 import zipfile
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from defusedxml import ElementTree as ET
 
 import structlog
+from defusedxml import ElementTree as ET
 
 from mtp_gateway.adapters.northbound.node_ids import NodeIdStrategy
 

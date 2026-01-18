@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from random import SystemRandom
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from random import SystemRandom
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import structlog
